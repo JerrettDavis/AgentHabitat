@@ -144,6 +144,35 @@
                             Reset
                         </button>
                     </div>
+                    @if (_saveStatus != null)
+                    {
+                        <div style="margin-top:var(--sp-2);font:var(--text-caption);color:@(_saveStatus == "ok" ? "var(--accent-green)" : "var(--accent-red)")">
+                            @(_saveStatus == "ok" ? "Layout saved · invariants pass" : "Save failed — check invariants")
+                        </div>
+                    }
+                </div>
+
+                <div style="margin-bottom:var(--sp-3)">
+                    <div class="section-label">Validation</div>
+                    <button class="habitat-btn-secondary" style="width:100%;font-size:11px" @onclick="RunValidation">
+                        Check Invariants
+                    </button>
+                    @if (_validationErrors != null)
+                    {
+                        <div style="margin-top:var(--sp-1);font:var(--text-caption);color:@(_validationErrors.Length == 0 ? "var(--accent-green)" : "var(--accent-red)")">
+                            @if (_validationErrors.Length == 0)
+                            {
+                                <span>All invariants pass (overlap · bounds · reachability)</span>
+                            }
+                            else
+                            {
+                                @foreach (var err in _validationErrors)
+                                {
+                                    <div>· @err</div>
+                                }
+                            }
+                        </div>
+                    }
                 </div>
 
                 <div>
@@ -202,6 +231,8 @@
     private bool _editMode = false;
     private bool _hasEditSelection = false;
     private string? _savedOverrides = null;
+    private string? _saveStatus = null;
+    private string[]? _validationErrors = null;
     private WorldRenderData? _renderData;
     private RoomRenderData? _selectedRoom;
     private AgentRenderData? _selectedAgent;
@@ -226,6 +257,8 @@
         _selectedAgent = null;
         _editMode = false;
         _hasEditSelection = false;
+        _saveStatus = null;
+        _validationErrors = null;
         StateHasChanged();
         // Reset base snapshot for override layer
         await JS.InvokeVoidAsync("eval", "document.getElementById('world-canvas')._baseObjects = null");
@@ -254,8 +287,9 @@
     private async Task SaveEdits()
     {
         var json = await JS.InvokeAsync<string>("WorldRenderer.saveOverrides", "world-canvas");
-        // In a real app, this would persist to server/file. For now, store in memory.
         _savedOverrides = json;
+        // Check if invariants passed in the saved data
+        _saveStatus = json.Contains("\"invariantsPass\":true") ? "ok" : "fail";
         StateHasChanged();
     }
 
@@ -270,6 +304,15 @@
     {
         await JS.InvokeVoidAsync("WorldRenderer.setEditAction", "world-canvas", "add", objType);
     }
+
+    private async Task RunValidation()
+    {
+        var result = await JS.InvokeAsync<ValidationResult>("WorldRenderer.validateInvariants", "world-canvas");
+        _validationErrors = result.Pass ? [] : result.Errors;
+        StateHasChanged();
+    }
+
+    private record ValidationResult(bool Pass, string[] Errors);
 
     private async Task OnPresetChanged()
     {

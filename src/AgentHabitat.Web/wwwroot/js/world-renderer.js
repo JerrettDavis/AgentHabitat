@@ -536,6 +536,51 @@ window.WorldRenderer = {
           ctx.fillText(selObj.type, sox + tileSize / 2, soy - 3);
         }
       }
+
+      // Placement preview ghost (during add/move actions)
+      if (canvas._editPreview) {
+        const { tx: ptx, ty: pty, valid } = canvas._editPreview;
+        const ppx = ptx * tileSize, ppy = pty * tileSize;
+        // Ghost tile highlight
+        ctx.fillStyle = valid ? '#22c55e30' : '#ef444440';
+        ctx.fillRect(ppx, ppy, tileSize, tileSize);
+        ctx.strokeStyle = valid ? '#22c55e' : '#ef4444';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(ppx + 1, ppy + 1, tileSize - 2, tileSize - 2);
+        // Icon
+        ctx.font = 'bold 10px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = valid ? '#22c55e' : '#ef4444';
+        ctx.fillText(valid ? '✓' : '✗', ppx + tileSize / 2, ppy + tileSize / 2 + 4);
+        // Reason label for invalid
+        if (!valid && canvas._editPreview.reason) {
+          const reasonMap = {
+            'out-of-bounds': 'Out of bounds',
+            'unwalkable': 'Not walkable',
+            'object-overlap': 'Object here',
+            'agent-overlap': 'Agent here',
+          };
+          const label = reasonMap[canvas._editPreview.reason] || canvas._editPreview.reason;
+          ctx.fillStyle = '#ef4444';
+          ctx.font = '8px system-ui';
+          ctx.fillText(label, ppx + tileSize / 2, ppy - 4);
+        }
+      }
+
+      // Validation result banner (brief flash after action)
+      if (canvas._validationResult) {
+        const vr = canvas._validationResult;
+        const bannerY = canvas.height - 48;
+        ctx.fillStyle = vr.pass ? '#22c55e30' : '#ef444440';
+        ctx.fillRect(0, bannerY, canvas.width, 22);
+        ctx.fillStyle = vr.pass ? '#22c55e' : '#ef4444';
+        ctx.font = 'bold 10px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(
+          vr.pass ? '✓ All invariants pass' : `✗ ${vr.errors[0]}`,
+          canvas.width / 2, bannerY + 15
+        );
+      }
     }
 
     // Persistent selection highlights (normal mode)
@@ -613,7 +658,7 @@ window.WorldRenderer = {
       canvas._clickHandlerSet = true;
       canvas.style.cursor = 'pointer';
 
-      // Hover tooltip
+      // Hover tooltip + placement preview
       canvas.addEventListener('mousemove', (e) => {
         const rect = canvas.getBoundingClientRect();
         const mx = e.clientX - rect.left;
@@ -624,6 +669,25 @@ window.WorldRenderer = {
 
         const tx = Math.floor(mx / ts);
         const ty = Math.floor(my / ts);
+
+        // Edit mode: show placement preview during add/move
+        if (canvas._editMode && (canvas._editAction === 'add' || canvas._editAction === 'move')) {
+          const excludeId = canvas._editAction === 'move' ? canvas._editSelectedObj : null;
+          const result = WorldRenderer.validatePlacement(canvasId, tx, ty, excludeId);
+          const prev = canvas._editPreview;
+          if (!prev || prev.tx !== tx || prev.ty !== ty) {
+            canvas._editPreview = { tx, ty, valid: result.valid, reason: result.reason };
+            canvas.style.cursor = result.valid ? 'copy' : 'not-allowed';
+            WorldRenderer.render(canvasId, wd);
+          }
+          return;
+        }
+
+        // Clear preview when not in add/move
+        if (canvas._editPreview) {
+          canvas._editPreview = null;
+          WorldRenderer.render(canvasId, wd);
+        }
 
         const hovAgent = (wd.agents || []).find(a => a.x === tx && a.y === ty);
         const hovRoom = wd.rooms.find(r =>
@@ -638,7 +702,7 @@ window.WorldRenderer = {
           canvas.style.cursor = 'pointer';
         } else {
           canvas.title = '';
-          canvas.style.cursor = 'default';
+          canvas.style.cursor = canvas._editMode ? 'crosshair' : 'default';
         }
       });
 
@@ -676,21 +740,32 @@ window.WorldRenderer = {
           const action = canvas._editAction;
 
           if (action === 'add' && canvas._editAddType) {
-            // Add new object at clicked tile (tracked in override layer)
-            if (wd.tiles[ty * wd.width + tx] > 0) {
-              const newObj = {
-                id: `edit-${Date.now()}`,
-                type: canvas._editAddType,
-                x: tx, y: ty,
-                roomId: 'user-placed'
-              };
-              wd.objects = wd.objects || [];
-              wd.objects.push(newObj);
-              WorldRenderer.getOverrides(canvasId).added.push(newObj);
-              canvas._editAction = null;
+            // Validate before adding
+            const addCheck = WorldRenderer.validatePlacement(canvasId, tx, ty, null);
+            if (!addCheck.valid) {
+              // Flash invalid indicator
+              canvas._editPreview = { tx, ty, valid: false, reason: addCheck.reason };
               WorldRenderer.render(canvasId, wd);
-              if (window._blazorEditCallback) window._blazorEditCallback('added', newObj);
+              setTimeout(() => { canvas._editPreview = null; WorldRenderer.render(canvasId, wd); }, 800);
+              return;
             }
+            const newObj = {
+              id: `edit-${Date.now()}`,
+              type: canvas._editAddType,
+              x: tx, y: ty,
+              roomId: 'user-placed'
+            };
+            wd.objects = wd.objects || [];
+            wd.objects.push(newObj);
+            WorldRenderer.getOverrides(canvasId).added.push(newObj);
+            canvas._editAction = null;
+            canvas._editPreview = null;
+            // Post-edit invariant check
+            const postAdd = WorldRenderer.validateInvariants(canvasId);
+            canvas._validationResult = postAdd;
+            WorldRenderer.render(canvasId, wd);
+            setTimeout(() => { canvas._validationResult = null; WorldRenderer.render(canvasId, wd); }, 2000);
+            if (window._blazorEditCallback) window._blazorEditCallback('added', newObj);
             return;
           }
 
@@ -698,17 +773,27 @@ window.WorldRenderer = {
           const clickedObj = (wd.objects || []).find(o => o.x === tx && o.y === ty);
 
           if (canvas._editSelectedObj && action === 'move') {
-            // Move selected object (tracked in override layer)
-            if (wd.tiles[ty * wd.width + tx] > 0) {
-              const obj = (wd.objects || []).find(o => o.id === canvas._editSelectedObj);
-              if (obj) {
-                obj.x = tx;
-                obj.y = ty;
-                WorldRenderer.getOverrides(canvasId).moved[obj.id] = { x: tx, y: ty };
-                canvas._editAction = null;
-                WorldRenderer.render(canvasId, wd);
-                if (window._blazorEditCallback) window._blazorEditCallback('moved', obj);
-              }
+            // Validate before moving
+            const moveCheck = WorldRenderer.validatePlacement(canvasId, tx, ty, canvas._editSelectedObj);
+            if (!moveCheck.valid) {
+              canvas._editPreview = { tx, ty, valid: false, reason: moveCheck.reason };
+              WorldRenderer.render(canvasId, wd);
+              setTimeout(() => { canvas._editPreview = null; WorldRenderer.render(canvasId, wd); }, 800);
+              return;
+            }
+            const obj = (wd.objects || []).find(o => o.id === canvas._editSelectedObj);
+            if (obj) {
+              obj.x = tx;
+              obj.y = ty;
+              WorldRenderer.getOverrides(canvasId).moved[obj.id] = { x: tx, y: ty };
+              canvas._editAction = null;
+              canvas._editPreview = null;
+              // Post-edit invariant check
+              const postMove = WorldRenderer.validateInvariants(canvasId);
+              canvas._validationResult = postMove;
+              WorldRenderer.render(canvasId, wd);
+              setTimeout(() => { canvas._validationResult = null; WorldRenderer.render(canvasId, wd); }, 2000);
+              if (window._blazorEditCallback) window._blazorEditCallback('moved', obj);
             }
             return;
           }
@@ -900,6 +985,97 @@ window.WorldRenderer = {
     }, 150);
   },
 
+  // Placement validation — returns { valid, reason }
+  validatePlacement: function (canvasId, tx, ty, excludeObjId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !canvas._worldData) return { valid: false, reason: 'no-world' };
+    const wd = canvas._worldData;
+    const W = wd.width, H = wd.height;
+
+    // Bounds check
+    if (tx < 0 || ty < 0 || tx >= W || ty >= H)
+      return { valid: false, reason: 'out-of-bounds' };
+
+    // Must be walkable tile (room floor or corridor)
+    if (wd.tiles[ty * W + tx] <= 0)
+      return { valid: false, reason: 'unwalkable' };
+
+    // No overlap with existing objects
+    const occupied = (wd.objects || []).some(o =>
+      o.x === tx && o.y === ty && o.id !== excludeObjId
+    );
+    if (occupied)
+      return { valid: false, reason: 'object-overlap' };
+
+    // No overlap with agents
+    const agentHere = (wd.agents || []).some(a => a.x === tx && a.y === ty);
+    if (agentHere)
+      return { valid: false, reason: 'agent-overlap' };
+
+    return { valid: true, reason: null };
+  },
+
+  // Post-edit invariant check — validates all current objects
+  validateInvariants: function (canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !canvas._worldData) return { pass: false, errors: ['no-world'] };
+    const wd = canvas._worldData;
+    const W = wd.width, H = wd.height;
+    const errors = [];
+
+    for (const obj of (wd.objects || [])) {
+      // Bounds
+      if (obj.x < 0 || obj.y < 0 || obj.x >= W || obj.y >= H)
+        errors.push(`${obj.id} out-of-bounds at (${obj.x},${obj.y})`);
+      // Walkable
+      else if (wd.tiles[obj.y * W + obj.x] <= 0)
+        errors.push(`${obj.id} on unwalkable tile (${obj.x},${obj.y})`);
+    }
+
+    // Check for duplicate positions
+    const posMap = new Map();
+    for (const obj of (wd.objects || [])) {
+      const key = `${obj.x},${obj.y}`;
+      if (posMap.has(key))
+        errors.push(`overlap: ${posMap.get(key)} and ${obj.id} at (${obj.x},${obj.y})`);
+      posMap.set(key, obj.id);
+    }
+
+    // Verify corridor reachability — BFS from first walkable tile must reach all walkable tiles
+    // (objects don't block walkability in tile grid, so just verify grid integrity)
+    let startX = -1, startY = -1;
+    const walkableCount = { total: 0 };
+    for (let y = 0; y < H && startX < 0; y++) {
+      for (let x = 0; x < W && startX < 0; x++) {
+        if (wd.tiles[y * W + x] > 0) { startX = x; startY = y; }
+      }
+    }
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++)
+        if (wd.tiles[y * W + x] > 0) walkableCount.total++;
+
+    if (startX >= 0) {
+      const visited = new Set();
+      const q = [{ x: startX, y: startY }];
+      visited.add(`${startX},${startY}`);
+      while (q.length > 0) {
+        const { x, y } = q.shift();
+        for (const [dx, dy] of [[0,1],[0,-1],[1,0],[-1,0]]) {
+          const nx = x + dx, ny = y + dy;
+          const k = `${nx},${ny}`;
+          if (nx >= 0 && ny >= 0 && nx < W && ny < H && !visited.has(k) && wd.tiles[ny * W + nx] > 0) {
+            visited.add(k);
+            q.push({ x: nx, y: ny });
+          }
+        }
+      }
+      if (visited.size !== walkableCount.total)
+        errors.push(`reachability: ${visited.size}/${walkableCount.total} tiles connected`);
+    }
+
+    return { pass: errors.length === 0, errors };
+  },
+
   // Override layer persistence
   _overrides: {}, // canvasId → { added: [], moved: {id→{x,y}}, removed: Set }
 
@@ -917,7 +1093,12 @@ window.WorldRenderer = {
 
   saveOverrides: function (canvasId) {
     const ov = this.getOverrides(canvasId);
+    const canvas = document.getElementById(canvasId);
+    const invariants = this.validateInvariants(canvasId);
     return JSON.stringify({
+      version: 1,
+      savedAt: new Date().toISOString(),
+      invariantsPass: invariants.pass,
       added: ov.added,
       moved: ov.moved,
       removed: [...ov.removed],
@@ -1004,7 +1185,11 @@ window.WorldRenderer = {
       const removed = wd.objects.splice(idx, 1)[0];
       WorldRenderer.getOverrides(canvasId).removed.add(removed.id);
       canvas._editSelectedObj = null;
+      // Post-edit invariant check
+      const postRemove = WorldRenderer.validateInvariants(canvasId);
+      canvas._validationResult = postRemove;
       WorldRenderer.render(canvasId, wd);
+      setTimeout(() => { canvas._validationResult = null; WorldRenderer.render(canvasId, wd); }, 2000);
       return removed;
     }
     return null;
