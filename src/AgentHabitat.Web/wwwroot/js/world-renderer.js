@@ -52,8 +52,21 @@ window.WorldRenderer = {
         }
         ctx.fillRect(px, py, tileSize, tileSize);
 
-        // Grid dots
-        if (tile > 0) {
+        // Floor patterns per archetype
+        if (tile === 2 && room) {
+          if (room.archetype === 'CodingRoom') {
+            ctx.fillStyle = '#ffffff05';
+            ctx.fillRect(px + 1, py + 1, tileSize - 2, 1);
+            ctx.fillRect(px + 1, py + 1, 1, tileSize - 2);
+          } else if (room.archetype === 'ReviewRoom') {
+            if ((x + y) % 2 === 0) { ctx.fillStyle = '#ffffff04'; ctx.fillRect(px + 2, py + 2, tileSize - 4, tileSize - 4); }
+          } else if (room.archetype === 'Library') {
+            ctx.fillStyle = '#ffffff06';
+            ctx.fillRect(px, py + (y % 3) * 10, tileSize, 2);
+          } else {
+            if ((x * 3 + y * 7) % 5 === 0) { ctx.fillStyle = '#ffffff03'; ctx.fillRect(px + 6, py + 6, 4, 4); }
+          }
+        } else if (tile > 0) {
           ctx.fillStyle = '#ffffff04';
           ctx.fillRect(px, py, 1, 1);
         }
@@ -134,26 +147,57 @@ window.WorldRenderer = {
       ctx.ellipse(ax, ay + 14, 10, 4, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Body circle
+      // Chibi body (head + torso)
+      // Head (large, chibi proportioned)
       ctx.beginPath();
-      ctx.arc(ax, ay, 12, 0, Math.PI * 2);
-      ctx.fillStyle = agent.color;
+      ctx.arc(ax, ay - 6, 10, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffd5a0';
       ctx.fill();
       ctx.strokeStyle = '#000';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      // Face (simple but clean)
-      ctx.fillStyle = '#ffd5a0';
+      // Hair dome
       ctx.beginPath();
-      ctx.arc(ax, ay - 2, 6, 0, Math.PI * 2);
+      ctx.arc(ax, ay - 10, 10, Math.PI, 0);
+      ctx.fillStyle = agent.color;
       ctx.fill();
-      // Eyes
+      // Hair sides
+      ctx.fillRect(ax - 10, ay - 12, 3, 8);
+      ctx.fillRect(ax + 7, ay - 12, 3, 8);
+
+      // Eyes (pixel-precise)
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(ax - 5, ay - 8, 4, 3);
+      ctx.fillRect(ax + 2, ay - 8, 4, 3);
+      ctx.fillStyle = '#4488cc';
+      ctx.fillRect(ax - 4, ay - 7, 2, 2);
+      ctx.fillRect(ax + 3, ay - 7, 2, 2);
       ctx.fillStyle = '#000';
-      ctx.fillRect(ax - 3, ay - 3, 2, 2);
-      ctx.fillRect(ax + 2, ay - 3, 2, 2);
+      ctx.fillRect(ax - 4, ay - 7, 1, 1);
+      ctx.fillRect(ax + 3, ay - 7, 1, 1);
+      // Eye sparkle
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(ax - 3, ay - 8, 1, 1);
+      ctx.fillRect(ax + 4, ay - 8, 1, 1);
+
       // Mouth
-      ctx.fillRect(ax - 2, ay + 1, 4, 1);
+      ctx.fillStyle = '#c08060';
+      ctx.fillRect(ax - 2, ay - 3, 4, 1);
+
+      // Body/shirt
+      ctx.fillStyle = agent.color;
+      ctx.beginPath();
+      ctx.ellipse(ax, ay + 6, 8, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Legs
+      ctx.fillStyle = '#2a2a3a';
+      ctx.fillRect(ax - 5, ay + 12, 4, 4);
+      ctx.fillRect(ax + 1, ay + 12, 4, 4);
 
       // Status dot
       ctx.beginPath();
