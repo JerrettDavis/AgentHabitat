@@ -11,9 +11,33 @@ public sealed class DeterministicWorldGenerator : IWorldGenerator
         var rng = new SeededRng(seed);
         var rooms = PlaceRooms(rng, options).ToList();
 
+        // Generate private offices for each agent
+        var agents = options.Agents ?? [];
+        var officeId = rooms.Count + 1;
+        foreach (var agent in agents)
+        {
+            var office = PlacePrivateOffice(rng, rooms, options, officeId, agent);
+            if (office != null)
+            {
+                rooms.Add(office);
+                officeId++;
+            }
+        }
+
         var walkable = new bool[options.Width, options.Height];
         StampRoomsAsWalkable(rooms, walkable, options);
         ConnectRoomsWithCorridors(rooms, walkable, options);
+
+        // Also connect offices to nearest shared room via corridors
+        var sharedRooms = rooms.Where(r => r.Archetype != RoomArchetype.PrivateOffice).ToList();
+        foreach (var office in rooms.Where(r => r.Archetype == RoomArchetype.PrivateOffice))
+        {
+            var nearest = sharedRooms
+                .OrderBy(r => Math.Abs(r.CenterX - office.CenterX) + Math.Abs(r.CenterY - office.CenterY))
+                .First();
+            CarveHorizontal(office.CenterX, nearest.CenterX, office.CenterY, walkable, options);
+            CarveVertical(office.CenterY, nearest.CenterY, nearest.CenterX, walkable, options);
+        }
 
         var doors = GenerateDoors(rng, rooms, walkable, options);
 
@@ -29,6 +53,31 @@ public sealed class DeterministicWorldGenerator : IWorldGenerator
             seed,
             options
         );
+    }
+
+    private static RoomPlacement? PlacePrivateOffice(
+        SeededRng rng,
+        IReadOnlyList<RoomPlacement> existingRooms,
+        WorldGenerationOptions options,
+        int id,
+        AgentDefinition agent)
+    {
+        // Private offices are smaller: 5-7 wide, 4-6 tall
+        var w = rng.Next(5, 8);
+        var h = rng.Next(4, 7);
+
+        for (var tries = 0; tries < 300; tries++)
+        {
+            var x = rng.Next(1, options.Width - w - 1);
+            var y = rng.Next(1, options.Height - h - 1);
+            var candidate = new RoomPlacement($"office-{agent.Id}", RoomArchetype.PrivateOffice, x, y, w, h);
+
+            var overlaps = existingRooms.Any(r => Overlap(r, candidate));
+            if (!overlaps)
+                return candidate;
+        }
+
+        return null; // Could not place — world is too full
     }
 
     private static IEnumerable<RoomPlacement> PlaceRooms(SeededRng rng, WorldGenerationOptions options)

@@ -20,14 +20,32 @@ public class WorldService
         ["custom"] = new("Custom", "alpha-001", "retro-office", "Enter your own seed and style"),
     };
 
-    public WorldGenerationResult Generate(string seed, string style = "retro-office")
+    public static readonly AgentDefinition[] DefaultAgents =
+    [
+        new("claude", "Claude", "Developer"),
+        new("copilot", "Copilot", "Developer"),
+        new("jdai", "JD.AI", "Assistant"),
+        new("ralph", "Ralph", "Triage"),
+    ];
+
+    public WorldGenerationResult Generate(string seed, string style = "retro-office",
+        IReadOnlyList<AgentDefinition>? agents = null)
     {
+        var agentList = agents ?? DefaultAgents;
+        // Scale world to fit shared rooms + private offices
+        var baseWidth = 32;
+        var baseHeight = 24;
+        var extraSpace = agentList.Count * 3; // ~3 tiles per office width contribution
+        var width = Math.Min(64, baseWidth + extraSpace);
+        var height = Math.Min(48, baseHeight + extraSpace / 2);
+
         var options = new WorldGenerationOptions(
-            Width: 32,
-            Height: 24,
+            Width: width,
+            Height: height,
             CorridorWidth: 2,
             StyleProfile: style,
-            ContentPackVersion: "v1"
+            ContentPackVersion: "v1",
+            Agents: agentList
         );
 
         return _generator.GenerateWorld(seed, options);
@@ -154,6 +172,37 @@ public class WorldService
                     Place("clock", cx, r.Y + 1, r.Id);
                     break;
 
+                case RoomArchetype.PrivateOffice:
+                    // Personal desk + monitor (against back wall)
+                    Place("desk", cx, r.Y + 1, r.Id);
+                    Place("monitor", cx, r.Y + 1, r.Id);
+                    Place("chair", cx, r.Y + 2, r.Id);
+                    // Personal items based on office owner role
+                    var ownerAgent = (world.Options.Agents ?? [])
+                        .FirstOrDefault(a => r.Id == $"office-{a.Id}");
+                    if (ownerAgent?.Role == "Developer")
+                    {
+                        Place("cables", r.X + 1, r.Y + 1, r.Id);
+                        Place("mug", cx + 1, r.Y + 2, r.Id);
+                        if (r.Width > 5) Place("bookshelf", r.X + r.Width - 2, r.Y + 1, r.Id);
+                    }
+                    else if (ownerAgent?.Role == "Assistant")
+                    {
+                        Place("papers", r.X + 1, r.Y + 1, r.Id);
+                        Place("plant", r.X + r.Width - 2, r.Y + 1, r.Id);
+                    }
+                    else if (ownerAgent?.Role == "Triage")
+                    {
+                        Place("bulletin", r.X + 1, r.Y + 1, r.Id);
+                        Place("clock", cx + 1, r.Y + 1, r.Id);
+                    }
+                    // Common personal items
+                    Place("plant", r.X + 1, r.Y + r.Height - 2, r.Id);
+                    Place("lamp", r.X + r.Width - 2, r.Y + r.Height - 2, r.Id);
+                    Place("trash", r.X + r.Width - 2, cy, r.Id);
+                    if (r.Height > 4) Place("rug", cx, cy + 1, r.Id);
+                    break;
+
                 default: // Lounge
                     // Couch cluster
                     Place("couch", r.X + 2, r.Y + 2, r.Id);
@@ -212,22 +261,25 @@ public class WorldService
             }
         }
 
-        // Generate agents (one per required room)
-        var agentDefs = new[]
+        // Generate agents — each agent spawns in their private office
+        var agentColors = new Dictionary<string, string>
         {
-            ("claude", "Claude", "#f97316", "Developer"),
-            ("copilot", "Copilot", "#3b82f6", "Developer"),
-            ("jdai", "JD.AI", "#22c55e", "Assistant"),
-            ("ralph", "Ralph", "#a855f7", "Triage"),
+            ["claude"] = "#f97316", ["copilot"] = "#3b82f6",
+            ["jdai"] = "#22c55e", ["ralph"] = "#a855f7",
         };
+        var defaultColor = "#888888";
 
         var agents = new List<AgentRenderData>();
-        for (var i = 0; i < Math.Min(agentDefs.Length, world.Rooms.Count); i++)
+        var agentDefs = world.Options.Agents ?? DefaultAgents;
+        for (var i = 0; i < agentDefs.Count; i++)
         {
-            var r = world.Rooms[i];
-            var (id, name, color, role) = agentDefs[i];
-            agents.Add(new AgentRenderData(id, name, color, role,
-                r.CenterX, r.CenterY, i < 2 ? "active" : i < 3 ? "idle" : "offline"));
+            var def = agentDefs[i];
+            // Find agent's personal office, fallback to shared room
+            var office = world.Rooms.FirstOrDefault(r => r.Id == $"office-{def.Id}")
+                         ?? (i < world.Rooms.Count ? world.Rooms[i] : world.Rooms[^1]);
+            var color = agentColors.GetValueOrDefault(def.Id, defaultColor);
+            agents.Add(new AgentRenderData(def.Id, def.Name, color, def.Role,
+                office.CenterX, office.CenterY, i < 2 ? "active" : i < 3 ? "idle" : "offline"));
         }
 
         var doors = world.Doors.Select(d => new DoorRenderData(

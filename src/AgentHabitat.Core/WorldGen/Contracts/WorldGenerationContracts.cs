@@ -5,7 +5,8 @@ public enum RoomArchetype
     CodingRoom,
     ReviewRoom,
     Library,
-    Lounge
+    Lounge,
+    PrivateOffice
 }
 
 public static class WorldStyleProfiles
@@ -22,12 +23,19 @@ public static class WorldStyleProfiles
     ];
 }
 
+public sealed record AgentDefinition(
+    string Id,
+    string Name,
+    string Role
+);
+
 public sealed record WorldGenerationOptions(
     int Width = 64,
     int Height = 48,
     int CorridorWidth = 1,
     string StyleProfile = WorldStyleProfiles.RetroOffice,
-    string ContentPackVersion = "v1"
+    string ContentPackVersion = "v1",
+    IReadOnlyList<AgentDefinition>? Agents = null
 );
 
 public sealed record RoomPlacement(

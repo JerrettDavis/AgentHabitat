@@ -33,17 +33,17 @@ function tileLighting(x, y, w, h) {
 const PALETTES = {
   'retro-office': {
     void: '#0d1117', corridor: '#1a2332', roomFloor: '#243447',
-    rooms: { CodingRoom: '#1e3a5f', ReviewRoom: '#2d4a2e', Library: '#4a3728', Lounge: '#3d2c4a' },
+    rooms: { CodingRoom: '#1e3a5f', ReviewRoom: '#2d4a2e', Library: '#4a3728', Lounge: '#3d2c4a', PrivateOffice: '#2a3a4a' },
     wall: '#16213e', accent: '#e76f51', label: '#8ecae6',
   },
   'forest-lab': {
     void: '#081a0a', corridor: '#1a3820', roomFloor: '#2d5a32',
-    rooms: { CodingRoom: '#1e5a35', ReviewRoom: '#2a6a3a', Library: '#5a4020', Lounge: '#3a5a2a' },
+    rooms: { CodingRoom: '#1e5a35', ReviewRoom: '#2a6a3a', Library: '#5a4020', Lounge: '#3a5a2a', PrivateOffice: '#2a4a30' },
     wall: '#1a3a1e', accent: '#ee6c4d', label: '#c0e8d0',
   },
   'neon-hq': {
     void: '#05050f', corridor: '#1a1038', roomFloor: '#2a1a4e',
-    rooms: { CodingRoom: '#3a1a6f', ReviewRoom: '#1a3a6f', Library: '#5a2a1f', Lounge: '#2a4a5f' },
+    rooms: { CodingRoom: '#3a1a6f', ReviewRoom: '#1a3a6f', Library: '#5a2a1f', Lounge: '#2a4a5f', PrivateOffice: '#2a2a4f' },
     wall: '#1a0a2e', accent: '#f472b6', label: '#c084fc',
   },
 };
@@ -141,7 +141,10 @@ window.WorldRenderer = {
       // Label with background pill
       ctx.font = 'bold 12px system-ui';
       ctx.textAlign = 'center';
-      const labelText = room.archetype.replace('Room', ' Room');
+      // Private offices show agent name, shared rooms show archetype
+      const isOffice = room.archetype === 'PrivateOffice';
+      const officeOwner = isOffice ? (worldData.agents || []).find(a => room.id === `office-${a.id}`) : null;
+      const labelText = officeOwner ? `${officeOwner.name}'s Office` : room.archetype.replace('Room', ' Room');
       const tm = ctx.measureText(labelText);
       const lx = rx + rw / 2, ly = ry + 14;
       ctx.fillStyle = '#00000070';
