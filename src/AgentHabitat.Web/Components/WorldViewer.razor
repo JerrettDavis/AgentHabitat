@@ -5,7 +5,7 @@
 <div class="habitat-shell">
     <div class="habitat-header">
         <h1>AgentHabitat</h1>
-        <span class="subtitle">Deterministic 2D world generation for AI agent collaboration</span>
+        <span class="subtitle">2D world generator · AI agent spaces</span>
     </div>
 
     <div class="habitat-controls">
@@ -98,6 +98,7 @@
 
     @if (_selectedAgent != null)
     {
+        <div class="habitat-modal-backdrop" @onclick="ClearSelection"></div>
         <div class="habitat-modal" style="border:2px solid @_selectedAgent.Color">
             <div class="modal-header">
                 <div style="width:16px;height:16px;border-radius:50%;background:@_selectedAgent.Color"></div>
