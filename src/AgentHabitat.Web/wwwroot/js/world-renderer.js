@@ -418,6 +418,23 @@ window.WorldRenderer = {
         const tx = Math.floor(mx / ts);
         const ty = Math.floor(my / ts);
 
+        // Check if an agent was clicked (priority over room)
+        const clickedAgent = (wd.agents || []).find(a => a.x === tx && a.y === ty);
+        if (clickedAgent && window._blazorAgentClickCallback) {
+          window._blazorAgentClickCallback(clickedAgent);
+          // Visual: highlight agent with ring
+          const ctx2 = canvas.getContext('2d');
+          const aax = clickedAgent.x * ts + ts / 2;
+          const aay = clickedAgent.y * ts + ts / 2;
+          ctx2.strokeStyle = '#ffffff';
+          ctx2.lineWidth = 2;
+          ctx2.setLineDash([4, 3]);
+          ctx2.beginPath(); ctx2.arc(aax, aay, 18, 0, Math.PI * 2); ctx2.stroke();
+          ctx2.setLineDash([]);
+          setTimeout(() => { if (canvas._worldData) WorldRenderer.render(canvasId, canvas._worldData); }, 2000);
+          return;
+        }
+
         // Find clicked room
         const room = wd.rooms.find(r =>
           tx >= r.x && tx < r.x + r.width && ty >= r.y && ty < r.y + r.height
@@ -466,6 +483,11 @@ window.WorldRenderer = {
   // Register Blazor callback for room clicks
   onRoomClick: function (callback) {
     window._blazorRoomClickCallback = callback;
+  },
+
+  // Register Blazor callback for agent clicks
+  onAgentClick: function (callback) {
+    window._blazorAgentClickCallback = callback;
   },
 
   // Movement prototype — move an agent toward a target tile

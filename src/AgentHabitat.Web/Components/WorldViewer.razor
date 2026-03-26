@@ -94,9 +94,36 @@
         }
     </div>
 
-    @if (_selectedRoom == null)
+    @if (_selectedAgent != null)
     {
-        <div style="color:#555;font-size:11px;margin-top:8px">Click a room to inspect it</div>
+        <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#0d1117;border:2px solid @_selectedAgent.Color;border-radius:12px;padding:20px;min-width:280px;z-index:100;box-shadow:0 8px 32px rgba(0,0,0,0.6)">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                <div style="width:16px;height:16px;border-radius:50%;background:@_selectedAgent.Color"></div>
+                <h3 style="color:#e0e0e0;margin:0;font-size:16px">@_selectedAgent.Name</h3>
+                <div style="width:8px;height:8px;border-radius:50%;background:@(_selectedAgent.Status == "active" ? "#22c55e" : _selectedAgent.Status == "idle" ? "#eab308" : "#666")"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:80px 1fr;gap:6px;font-size:12px;color:#888">
+                <span>Role:</span><span style="color:#e0e0e0">@_selectedAgent.Role</span>
+                <span>Status:</span><span style="color:#e0e0e0">@_selectedAgent.Status</span>
+                <span>Position:</span><span style="color:#e0e0e0">(@_selectedAgent.X, @_selectedAgent.Y)</span>
+                <span>ID:</span><span style="color:#e0e0e0;font-family:monospace">@_selectedAgent.Id</span>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:16px">
+                <button @onclick="() => MoveSelectedAgent()"
+                        style="flex:1;background:@_selectedAgent.Color;color:white;border:none;padding:6px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">
+                    Move Agent
+                </button>
+                <button @onclick="ClearSelection"
+                        style="flex:1;background:#222;color:#888;border:1px solid #333;padding:6px;border-radius:6px;cursor:pointer;font-size:11px">
+                    Close
+                </button>
+            </div>
+        </div>
+    }
+
+    @if (_selectedRoom == null && _selectedAgent == null)
+    {
+        <div style="color:#555;font-size:11px;margin-top:8px">Click a room or agent to inspect</div>
     }
 </div>
 
@@ -105,6 +132,7 @@
     private string Style { get; set; } = "retro-office";
     private WorldRenderData? _renderData;
     private RoomRenderData? _selectedRoom;
+    private AgentRenderData? _selectedAgent;
     private AgentRenderData[] _selectedRoomAgents = [];
     private ObjectRenderData[] _selectedRoomObjects = [];
     private DotNetObjectReference<WorldViewer>? _selfRef;
@@ -165,9 +193,21 @@
     private void ClearSelection()
     {
         _selectedRoom = null;
+        _selectedAgent = null;
         _selectedRoomAgents = [];
         _selectedRoomObjects = [];
         StateHasChanged();
+    }
+
+    private async Task MoveSelectedAgent()
+    {
+        if (_selectedAgent == null || _renderData == null) return;
+        // Move agent to a random walkable room center
+        var rng = new Random();
+        var targetRoom = _renderData.Rooms[rng.Next(_renderData.Rooms.Length)];
+        await JS.InvokeVoidAsync("WorldRenderer.moveAgent", "world-canvas",
+            _selectedAgent.Id, targetRoom.X + targetRoom.Width / 2, targetRoom.Y + targetRoom.Height / 2);
+        ClearSelection();
     }
 
     public void Dispose()
