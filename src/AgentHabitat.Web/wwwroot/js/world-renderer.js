@@ -152,6 +152,84 @@ window.WorldRenderer = {
       ctx.fillText(labelText, lx, ly + 2);
     }
 
+    // Doors (rendered as openings in walls with door frame)
+    for (const door of (worldData.doors || [])) {
+      const dx = door.x * tileSize, dy = door.y * tileSize;
+      const isOpen = (door.state || 'Open') === 'Open';
+      const doorColor = isOpen ? tintColor('#c8956c', tint) : tintColor('#8b5e3c', tint);
+      const frameColor = tintColor('#5a3a1a', tint);
+
+      // Clear the wall segment where the door sits
+      const room = worldData.rooms.find(r => r.id === door.roomId);
+      if (room) {
+        const baseColor = pal.rooms[room.archetype] || pal.roomFloor;
+        const light = tileLighting(door.x, door.y, W, H);
+        const litTint = { r: tint.r * light, g: tint.g * light, b: tint.b * light };
+        ctx.fillStyle = tintColor(baseColor, litTint);
+        ctx.fillRect(dx, dy, tileSize, tileSize);
+      }
+
+      if (door.direction === 'North' || door.direction === 'South') {
+        // Horizontal door — spans tile width
+        const frameY = door.direction === 'North' ? dy : dy + tileSize - 4;
+        // Door frame (top/bottom rail)
+        ctx.fillStyle = frameColor;
+        ctx.fillRect(dx + 4, frameY, tileSize - 8, 4);
+        // Door panel
+        ctx.fillStyle = doorColor;
+        ctx.fillRect(dx + 6, frameY + 1, tileSize - 12, 2);
+        // Handle
+        ctx.fillStyle = tintColor('#d4a84a', tint);
+        ctx.fillRect(dx + tileSize / 2 + 2, frameY + 1, 2, 2);
+        // Open indicator
+        if (isOpen) {
+          ctx.fillStyle = '#22c55e40';
+          ctx.fillRect(dx + 8, frameY, tileSize - 16, 4);
+        }
+      } else {
+        // Vertical door — spans tile height
+        const frameX = door.direction === 'West' ? dx : dx + tileSize - 4;
+        // Door frame (left/right rail)
+        ctx.fillStyle = frameColor;
+        ctx.fillRect(frameX, dy + 4, 4, tileSize - 8);
+        // Door panel
+        ctx.fillStyle = doorColor;
+        ctx.fillRect(frameX + 1, dy + 6, 2, tileSize - 12);
+        // Handle
+        ctx.fillStyle = tintColor('#d4a84a', tint);
+        ctx.fillRect(frameX + 1, dy + tileSize / 2 + 2, 2, 2);
+        // Open indicator
+        if (isOpen) {
+          ctx.fillStyle = '#22c55e40';
+          ctx.fillRect(frameX, dy + 8, 4, tileSize - 16);
+        }
+      }
+
+      // Closed/locked visual (crossbar for locked, solid fill for closed)
+      if (door.state === 'Locked') {
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 1;
+        if (door.direction === 'North' || door.direction === 'South') {
+          const fy = door.direction === 'North' ? dy : dy + tileSize - 4;
+          ctx.beginPath(); ctx.moveTo(dx + 8, fy); ctx.lineTo(dx + tileSize - 8, fy + 4); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(dx + tileSize - 8, fy); ctx.lineTo(dx + 8, fy + 4); ctx.stroke();
+        } else {
+          const fx = door.direction === 'West' ? dx : dx + tileSize - 4;
+          ctx.beginPath(); ctx.moveTo(fx, dy + 8); ctx.lineTo(fx + 4, dy + tileSize - 8); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(fx + 4, dy + 8); ctx.lineTo(fx, dy + tileSize - 8); ctx.stroke();
+        }
+      } else if (door.state === 'Closed') {
+        ctx.fillStyle = '#f9731640';
+        if (door.direction === 'North' || door.direction === 'South') {
+          const fy = door.direction === 'North' ? dy : dy + tileSize - 4;
+          ctx.fillRect(dx + 6, fy, tileSize - 12, 4);
+        } else {
+          const fx = door.direction === 'West' ? dx : dx + tileSize - 4;
+          ctx.fillRect(fx, dy + 6, 4, tileSize - 12);
+        }
+      }
+    }
+
     // Corridor edges
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {

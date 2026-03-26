@@ -21,7 +21,52 @@ public static class WorldValidation
             }
         }
 
-        // Rule 2: all required rooms reachable via walkable graph
+        // Rule 2: every room has at least one door
+        var roomDoorCounts = new Dictionary<string, int>();
+        foreach (var room in rooms)
+            roomDoorCounts[room.Id] = 0;
+
+        foreach (var door in world.Doors)
+        {
+            if (roomDoorCounts.ContainsKey(door.RoomId))
+                roomDoorCounts[door.RoomId]++;
+
+            // Rule 3: doors must be on room perimeter
+            var ownerRoom = rooms.FirstOrDefault(r => r.Id == door.RoomId);
+            if (ownerRoom != null)
+            {
+                var onPerimeter =
+                    door.X == ownerRoom.X || door.X == ownerRoom.X + ownerRoom.Width - 1 ||
+                    door.Y == ownerRoom.Y || door.Y == ownerRoom.Y + ownerRoom.Height - 1;
+                if (!onPerimeter)
+                    errors.Add($"Door {door.Id} not on perimeter of {door.RoomId}");
+
+                var inRoom = door.X >= ownerRoom.X && door.X < ownerRoom.X + ownerRoom.Width &&
+                             door.Y >= ownerRoom.Y && door.Y < ownerRoom.Y + ownerRoom.Height;
+                if (!inRoom)
+                    errors.Add($"Door {door.Id} outside bounds of {door.RoomId}");
+            }
+            else
+            {
+                errors.Add($"Door {door.Id} references unknown room {door.RoomId}");
+            }
+        }
+
+        foreach (var (roomId, count) in roomDoorCounts)
+        {
+            if (count == 0)
+                errors.Add($"Room {roomId} has no doors");
+        }
+
+        // Rule 4: no duplicate door positions
+        var doorPositions = new HashSet<(int, int)>();
+        foreach (var door in world.Doors)
+        {
+            if (!doorPositions.Add((door.X, door.Y)))
+                errors.Add($"Duplicate door position at ({door.X},{door.Y})");
+        }
+
+        // Rule 5: all required rooms reachable via walkable graph
         if (rooms.Count > 0)
         {
             var reachable = FloodFill(world.Walkable, rooms[0].CenterX, rooms[0].CenterY);

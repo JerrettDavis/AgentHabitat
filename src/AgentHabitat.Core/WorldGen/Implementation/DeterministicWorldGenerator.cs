@@ -15,12 +15,15 @@ public sealed class DeterministicWorldGenerator : IWorldGenerator
         StampRoomsAsWalkable(rooms, walkable, options);
         ConnectRoomsWithCorridors(rooms, walkable, options);
 
+        var doors = GenerateDoors(rng, rooms, walkable, options);
+
         var topoHash = ComputeTopologyHash(seed, options, rooms, walkable);
 
         return new WorldGenerationResult(
             options.Width,
             options.Height,
             rooms,
+            doors,
             walkable,
             topoHash,
             seed,
@@ -131,6 +134,133 @@ public sealed class DeterministicWorldGenerator : IWorldGenerator
                 }
             }
         }
+    }
+
+    private static List<DoorPlacement> GenerateDoors(
+        SeededRng rng,
+        IReadOnlyList<RoomPlacement> rooms,
+        bool[,] walkable,
+        WorldGenerationOptions options)
+    {
+        var doors = new List<DoorPlacement>();
+        var doorId = 1;
+
+        foreach (var room in rooms)
+        {
+            var candidates = FindDoorCandidates(room, rooms, walkable, options);
+
+            if (candidates.Count == 0)
+                throw new InvalidOperationException($"Room {room.Id} has no valid door candidates.");
+
+            // Always place at least 1 door. For larger rooms, place more.
+            var area = room.Width * room.Height;
+            var maxDoors = area > 60 ? 3 : area > 35 ? 2 : 1;
+            var doorCount = Math.Min(maxDoors, candidates.Count);
+
+            // Shuffle candidates deterministically, then pick the first doorCount
+            for (var i = candidates.Count - 1; i > 0; i--)
+            {
+                var j = rng.Next(0, i + 1);
+                (candidates[i], candidates[j]) = (candidates[j], candidates[i]);
+            }
+
+            for (var i = 0; i < doorCount; i++)
+            {
+                var (x, y, dir, connectsTo) = candidates[i];
+                doors.Add(new DoorPlacement(
+                    $"door-{doorId++}",
+                    x, y,
+                    room.Id,
+                    dir,
+                    DoorState.Open,
+                    connectsTo
+                ));
+            }
+        }
+
+        return doors;
+    }
+
+    private static List<(int X, int Y, DoorDirection Dir, string? ConnectsTo)> FindDoorCandidates(
+        RoomPlacement room,
+        IReadOnlyList<RoomPlacement> allRooms,
+        bool[,] walkable,
+        WorldGenerationOptions options)
+    {
+        var candidates = new List<(int, int, DoorDirection, string?)>();
+        var W = options.Width;
+        var H = options.Height;
+
+        // Scan each edge of the room perimeter (including corners)
+        // North edge (y = room.Y, look at y-1)
+        for (var x = room.X; x < room.X + room.Width; x++)
+        {
+            var oy = room.Y - 1;
+            if (oy >= 0 && walkable[x, oy] && !IsInsideRoom(x, oy, room))
+            {
+                var target = FindConnectsTo(x, oy, room, allRooms);
+                candidates.Add((x, room.Y, DoorDirection.North, target));
+            }
+        }
+
+        // South edge (y = room.Y + room.Height - 1, look at y+1)
+        for (var x = room.X; x < room.X + room.Width; x++)
+        {
+            var oy = room.Y + room.Height;
+            if (oy < H && walkable[x, oy] && !IsInsideRoom(x, oy, room))
+            {
+                var target = FindConnectsTo(x, oy, room, allRooms);
+                candidates.Add((x, room.Y + room.Height - 1, DoorDirection.South, target));
+            }
+        }
+
+        // West edge (x = room.X, look at x-1)
+        for (var y = room.Y; y < room.Y + room.Height; y++)
+        {
+            var ox = room.X - 1;
+            if (ox >= 0 && walkable[ox, y] && !IsInsideRoom(ox, y, room))
+            {
+                var target = FindConnectsTo(ox, y, room, allRooms);
+                candidates.Add((room.X, y, DoorDirection.West, target));
+            }
+        }
+
+        // East edge (x = room.X + room.Width - 1, look at x+1)
+        for (var y = room.Y; y < room.Y + room.Height; y++)
+        {
+            var ox = room.X + room.Width;
+            if (ox < W && walkable[ox, y] && !IsInsideRoom(ox, y, room))
+            {
+                var target = FindConnectsTo(ox, y, room, allRooms);
+                candidates.Add((room.X + room.Width - 1, y, DoorDirection.East, target));
+            }
+        }
+
+        // Deduplicate corner tiles (corners appear on two edges)
+        var seen = new HashSet<(int, int)>();
+        var deduped = new List<(int, int, DoorDirection, string?)>();
+        foreach (var c in candidates)
+        {
+            if (seen.Add((c.Item1, c.Item2)))
+                deduped.Add(c);
+        }
+
+        return deduped;
+    }
+
+    private static bool IsInsideRoom(int x, int y, RoomPlacement room) =>
+        x >= room.X && x < room.X + room.Width &&
+        y >= room.Y && y < room.Y + room.Height;
+
+    private static string? FindConnectsTo(int x, int y, RoomPlacement sourceRoom, IReadOnlyList<RoomPlacement> rooms)
+    {
+        foreach (var r in rooms)
+        {
+            if (r.Id == sourceRoom.Id) continue;
+            if (x >= r.X && x < r.X + r.Width && y >= r.Y && y < r.Y + r.Height)
+                return r.Id;
+        }
+        return "corridor";
     }
 
     private static string ComputeTopologyHash(string seed, WorldGenerationOptions options, IEnumerable<RoomPlacement> rooms, bool[,] walkable)

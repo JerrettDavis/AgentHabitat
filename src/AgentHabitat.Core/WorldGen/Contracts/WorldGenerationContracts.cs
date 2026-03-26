@@ -43,10 +43,25 @@ public sealed record RoomPlacement(
     public int CenterY => Y + Height / 2;
 }
 
+public enum DoorDirection { North, East, South, West }
+
+public enum DoorState { Open, Closed, Locked }
+
+public sealed record DoorPlacement(
+    string Id,
+    int X,
+    int Y,
+    string RoomId,
+    DoorDirection Direction,
+    DoorState State,
+    string? ConnectsTo // roomId, "corridor", or null
+);
+
 public sealed record WorldGenerationResult(
     int Width,
     int Height,
     IReadOnlyList<RoomPlacement> Rooms,
+    IReadOnlyList<DoorPlacement> Doors,
     bool[,] Walkable,
     string TopologyHash,
     string Seed,

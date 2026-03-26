@@ -230,6 +230,10 @@ public class WorldService
                 r.CenterX, r.CenterY, i < 2 ? "active" : i < 3 ? "idle" : "offline"));
         }
 
+        var doors = world.Doors.Select(d => new DoorRenderData(
+            d.Id, d.X, d.Y, d.RoomId, d.Direction.ToString(), d.State.ToString(), d.ConnectsTo
+        )).ToArray();
+
         return new WorldRenderData(
             world.Width,
             world.Height,
@@ -237,6 +241,7 @@ public class WorldService
             rooms,
             objects.ToArray(),
             agents.ToArray(),
+            doors,
             world.Seed,
             world.Options.StyleProfile,
             world.TopologyHash
@@ -251,6 +256,7 @@ public record WorldRenderData(
     RoomRenderData[] Rooms,
     ObjectRenderData[] Objects,
     AgentRenderData[] Agents,
+    DoorRenderData[] Doors,
     string Seed,
     string Style,
     string TopologyHash
@@ -278,6 +284,16 @@ public record WorldPreset(
     string Seed,
     string Style,
     string Description
+);
+
+public record DoorRenderData(
+    string Id,
+    int X,
+    int Y,
+    string RoomId,
+    string Direction,
+    string State,
+    string? ConnectsTo
 );
 
 public record AgentRenderData(

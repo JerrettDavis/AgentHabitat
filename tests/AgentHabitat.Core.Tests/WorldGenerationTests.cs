@@ -198,6 +198,76 @@ public class WorldGenerationTests
     }
 
     [Fact]
+    public void GeneratedWorld_EveryRoomHasAtLeastOneDoor()
+    {
+        var world = _gen.GenerateWorld("alpha-001", _defaultOpts);
+
+        foreach (var room in world.Rooms)
+        {
+            var doorCount = world.Doors.Count(d => d.RoomId == room.Id);
+            Assert.True(doorCount >= 1, $"Room {room.Id} ({room.Archetype}) has no doors");
+        }
+    }
+
+    [Fact]
+    public void GeneratedWorld_DoorsAreOnRoomPerimeter()
+    {
+        var world = _gen.GenerateWorld("alpha-002", _defaultOpts);
+
+        foreach (var door in world.Doors)
+        {
+            var room = world.Rooms.First(r => r.Id == door.RoomId);
+            var onPerimeter =
+                door.X == room.X || door.X == room.X + room.Width - 1 ||
+                door.Y == room.Y || door.Y == room.Y + room.Height - 1;
+            Assert.True(onPerimeter, $"Door {door.Id} at ({door.X},{door.Y}) not on perimeter of {room.Id}");
+        }
+    }
+
+    [Fact]
+    public void GeneratedWorld_DoorsAreDeterministic()
+    {
+        var a = _gen.GenerateWorld("alpha-001", _defaultOpts);
+        var b = _gen.GenerateWorld("alpha-001", _defaultOpts);
+
+        Assert.Equal(a.Doors.Count, b.Doors.Count);
+        for (var i = 0; i < a.Doors.Count; i++)
+        {
+            Assert.Equal(a.Doors[i].X, b.Doors[i].X);
+            Assert.Equal(a.Doors[i].Y, b.Doors[i].Y);
+            Assert.Equal(a.Doors[i].RoomId, b.Doors[i].RoomId);
+            Assert.Equal(a.Doors[i].Direction, b.Doors[i].Direction);
+        }
+    }
+
+    [Fact]
+    public void GeneratedWorld_NoDuplicateDoorPositions()
+    {
+        var world = _gen.GenerateWorld("alpha-003", _defaultOpts);
+        var positions = world.Doors.Select(d => (d.X, d.Y)).ToList();
+        Assert.Equal(positions.Count, positions.Distinct().Count());
+    }
+
+    [Fact]
+    public void PropertyStyle_AllSeedsHaveDoorsPassingValidation()
+    {
+        for (var i = 0; i < 50; i++)
+        {
+            var seed = $"door-{i:000}";
+            var world = _gen.GenerateWorld(seed, _defaultOpts);
+            var errors = WorldValidation.Validate(world);
+            Assert.Empty(errors);
+
+            // Every room must have at least 1 door
+            foreach (var room in world.Rooms)
+            {
+                var doorCount = world.Doors.Count(d => d.RoomId == room.Id);
+                Assert.True(doorCount >= 1, $"Seed {seed}: Room {room.Id} has no doors");
+            }
+        }
+    }
+
+    [Fact]
     public void SeedPack_WritesHashSamplesArtifact_ForAlphaAndExtendedSeeds()
     {
         var seeds = new[] { "alpha-001", "alpha-002", "alpha-003", "beta-001", "gamma-001" };
