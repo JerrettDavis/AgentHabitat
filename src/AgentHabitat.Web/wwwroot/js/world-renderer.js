@@ -145,24 +145,100 @@ window.WorldRenderer = {
       }
     }
 
-    // Objects (furniture icons)
-    const objIcons = {
-      desk: '🖥️', monitor: '💻', chair: '🪑', whiteboard: '📋',
-      bookshelf: '📚', lamp: '💡', plant: '🌿', couch: '🛋️',
+    // Objects as pixel art (heightmap-lit)
+    function hex2rgb(h){return{r:parseInt(h.slice(1,3),16),g:parseInt(h.slice(3,5),16),b:parseInt(h.slice(5,7),16)};}
+    function rgb2hex(r,g,b){return'#'+[r,g,b].map(c=>Math.max(0,Math.min(255,Math.round(c))).toString(16).padStart(2,'0')).join('');}
+
+    function drawLitRect(cx, x, y, w, h, color, depth, lightDir) {
+      const rgb = hex2rgb(color);
+      // Simple directional shading based on depth
+      const brightness = 0.6 + depth * 0.08 + lightDir * 0.15;
+      cx.fillStyle = rgb2hex(rgb.r * brightness, rgb.g * brightness, rgb.b * brightness);
+      cx.fillRect(x, y, w, h);
+    }
+
+    const matPal = {
+      wood: tintColor('#8b6914', tint), woodLight: tintColor('#b8960b', tint), woodDark: tintColor('#6b4e1e', tint),
+      metal: tintColor('#a0a0a0', tint), screen: tintColor('#1a4a6a', tint), fabric: tintColor('#5a4a7a', tint),
+      leaf: tintColor('#4a8a4a', tint), leafDark: tintColor('#2d6a2d', tint),
+      pot: tintColor('#8b5e3c', tint), board: tintColor('#e0e0e0', tint),
     };
-    ctx.font = '18px serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+
     for (const obj of (worldData.objects || [])) {
-      const ox = obj.x * tileSize + tileSize / 2;
-      const oy = obj.y * tileSize + tileSize / 2;
-      const icon = objIcons[obj.type] || '•';
-      // Glow
-      ctx.fillStyle = pal.accent + '15';
-      ctx.beginPath();
-      ctx.arc(ox, oy, 12, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillText(icon, ox, oy);
+      const ox = obj.x * tileSize, oy = obj.y * tileSize;
+      const t = obj.type;
+
+      if (t === 'desk' || t === 'monitor') {
+        // Desk surface
+        drawLitRect(ctx, ox+4, oy+6, 24, 12, matPal.wood, 4, 0.8);
+        drawLitRect(ctx, ox+5, oy+7, 22, 2, matPal.woodLight, 5, 1.0);
+        // Legs
+        drawLitRect(ctx, ox+6, oy+18, 3, 8, matPal.woodDark, 2, 0.5);
+        drawLitRect(ctx, ox+23, oy+18, 3, 8, matPal.woodDark, 2, 0.5);
+        // Monitor
+        drawLitRect(ctx, ox+10, oy+1, 12, 6, matPal.metal, 6, 0.9);
+        drawLitRect(ctx, ox+11, oy+2, 10, 4, matPal.screen, 6.5, 0.7);
+        drawLitRect(ctx, ox+15, oy+7, 2, 2, matPal.metal, 5, 0.8);
+      } else if (t === 'chair') {
+        drawLitRect(ctx, ox+9, oy+10, 14, 8, matPal.fabric, 3, 0.7);
+        drawLitRect(ctx, ox+11, oy+4, 10, 7, matPal.fabric, 5, 0.9);
+        drawLitRect(ctx, ox+10, oy+18, 2, 6, matPal.metal, 1, 0.5);
+        drawLitRect(ctx, ox+20, oy+18, 2, 6, matPal.metal, 1, 0.5);
+      } else if (t === 'whiteboard') {
+        drawLitRect(ctx, ox+3, oy+2, 26, 14, matPal.board, 5, 0.9);
+        drawLitRect(ctx, ox+3, oy+2, 26, 2, matPal.metal, 6, 1.0);
+        drawLitRect(ctx, ox+3, oy+14, 26, 2, matPal.metal, 6, 1.0);
+        // Scribbles
+        ctx.fillStyle = '#33333380'; ctx.fillRect(ox+8, oy+6, 10, 1);
+        ctx.fillStyle = '#e76f5180'; ctx.fillRect(ox+10, oy+9, 14, 1);
+        // Stand
+        drawLitRect(ctx, ox+14, oy+16, 2, 6, matPal.metal, 2, 0.6);
+        drawLitRect(ctx, ox+17, oy+16, 2, 6, matPal.metal, 2, 0.6);
+      } else if (t === 'bookshelf') {
+        const bookColors = ['#cc4444','#44aa44','#4444cc','#ccaa44','#aa44aa','#44aaaa'];
+        drawLitRect(ctx, ox+3, oy+1, 22, 20, matPal.wood, 2, 0.7);
+        for (let row = 0; row < 4; row++) {
+          drawLitRect(ctx, ox+3, oy+1+row*5, 22, 1, matPal.woodLight, 3, 0.9);
+          for (let bx = 0; bx < 10; bx++) {
+            const bc = bookColors[(bx + row * 3) % bookColors.length];
+            drawLitRect(ctx, ox+4+bx*2, oy+2+row*5, 2, 4, tintColor(bc, tint), 4, 0.8);
+          }
+        }
+      } else if (t === 'plant') {
+        // Pot
+        drawLitRect(ctx, ox+11, oy+20, 10, 8, matPal.pot, 3, 0.7);
+        drawLitRect(ctx, ox+10, oy+20, 12, 2, tintColor('#a07050', tint), 4, 0.9);
+        // Stem
+        drawLitRect(ctx, ox+15, oy+14, 2, 6, tintColor('#3a5a2a', tint), 2, 0.6);
+        // Leaves
+        for (const [lx,ly] of [[13,10],[18,8],[11,7],[16,5],[20,9],[15,3]]) {
+          ctx.fillStyle = matPal.leaf;
+          ctx.beginPath(); ctx.arc(ox+lx, oy+ly, 3, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = matPal.leafDark;
+          ctx.beginPath(); ctx.arc(ox+lx, oy+ly, 1.5, 0, Math.PI*2); ctx.fill();
+        }
+      } else if (t === 'couch') {
+        drawLitRect(ctx, ox+4, oy+6, 24, 14, matPal.fabric, 3, 0.7);
+        drawLitRect(ctx, ox+4, oy+6, 24, 3, matPal.fabric, 5, 0.9); // backrest
+        drawLitRect(ctx, ox+3, oy+6, 2, 10, matPal.fabric, 5, 0.8); // left arm
+        drawLitRect(ctx, ox+27, oy+6, 2, 10, matPal.fabric, 5, 0.8); // right arm
+        drawLitRect(ctx, ox+15, oy+10, 2, 8, matPal.woodDark, 2, 0.5); // center division
+      } else if (t === 'lamp') {
+        // Shade
+        ctx.fillStyle = tintColor('#e9c46a', tint);
+        ctx.beginPath(); ctx.arc(ox+16, oy+6, 6, Math.PI, 0); ctx.fill();
+        // Pole
+        drawLitRect(ctx, ox+15, oy+6, 2, 14, matPal.metal, 2, 0.6);
+        // Base
+        drawLitRect(ctx, ox+12, oy+20, 8, 3, matPal.metal, 1, 0.5);
+        // Glow
+        ctx.fillStyle = '#ffee8820';
+        ctx.beginPath(); ctx.arc(ox+16, oy+8, 10, 0, Math.PI*2); ctx.fill();
+      } else {
+        // Fallback dot
+        ctx.fillStyle = pal.accent + '40';
+        ctx.beginPath(); ctx.arc(ox+16, oy+16, 8, 0, Math.PI*2); ctx.fill();
+      }
     }
 
     // Agents
