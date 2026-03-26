@@ -515,7 +515,9 @@ window.WorldRenderer = {
       ctx.fillStyle = '#f97316';
       ctx.font = 'bold 11px system-ui';
       ctx.textAlign = 'center';
-      ctx.fillText('EDIT MODE — Click objects to select · Actions in panel', canvas.width / 2, canvas.height - 8);
+      const changeCount = WorldRenderer.getChangeCount(canvasId);
+      const changeLabel = changeCount > 0 ? ` · ${changeCount} unsaved change${changeCount > 1 ? 's' : ''}` : '';
+      ctx.fillText(`EDIT MODE — Click objects to select · Actions in panel${changeLabel}`, canvas.width / 2, canvas.height - 8);
 
       // Highlight selected object
       if (canvas._editSelectedObj) {
@@ -601,6 +603,10 @@ window.WorldRenderer = {
     canvas._worldData = worldData;
     canvas._tileSize = tileSize;
     canvas._pal = pal;
+    // Snapshot base objects on first render (for override layer)
+    if (!canvas._baseObjects) {
+      canvas._baseObjects = JSON.parse(JSON.stringify(worldData.objects || []));
+    }
 
     // Click + right-click handlers (only add once)
     if (!canvas._clickHandlerSet) {
@@ -670,7 +676,7 @@ window.WorldRenderer = {
           const action = canvas._editAction;
 
           if (action === 'add' && canvas._editAddType) {
-            // Add new object at clicked tile
+            // Add new object at clicked tile (tracked in override layer)
             if (wd.tiles[ty * wd.width + tx] > 0) {
               const newObj = {
                 id: `edit-${Date.now()}`,
@@ -680,6 +686,7 @@ window.WorldRenderer = {
               };
               wd.objects = wd.objects || [];
               wd.objects.push(newObj);
+              WorldRenderer.getOverrides(canvasId).added.push(newObj);
               canvas._editAction = null;
               WorldRenderer.render(canvasId, wd);
               if (window._blazorEditCallback) window._blazorEditCallback('added', newObj);
@@ -691,12 +698,13 @@ window.WorldRenderer = {
           const clickedObj = (wd.objects || []).find(o => o.x === tx && o.y === ty);
 
           if (canvas._editSelectedObj && action === 'move') {
-            // Move selected object to clicked tile
+            // Move selected object (tracked in override layer)
             if (wd.tiles[ty * wd.width + tx] > 0) {
               const obj = (wd.objects || []).find(o => o.id === canvas._editSelectedObj);
               if (obj) {
                 obj.x = tx;
                 obj.y = ty;
+                WorldRenderer.getOverrides(canvasId).moved[obj.id] = { x: tx, y: ty };
                 canvas._editAction = null;
                 WorldRenderer.render(canvasId, wd);
                 if (window._blazorEditCallback) window._blazorEditCallback('moved', obj);
@@ -892,6 +900,81 @@ window.WorldRenderer = {
     }, 150);
   },
 
+  // Override layer persistence
+  _overrides: {}, // canvasId → { added: [], moved: {id→{x,y}}, removed: Set }
+
+  getOverrides: function (canvasId) {
+    if (!this._overrides[canvasId]) {
+      this._overrides[canvasId] = { added: [], moved: {}, removed: new Set() };
+    }
+    return this._overrides[canvasId];
+  },
+
+  getChangeCount: function (canvasId) {
+    const ov = this.getOverrides(canvasId);
+    return ov.added.length + Object.keys(ov.moved).length + ov.removed.size;
+  },
+
+  saveOverrides: function (canvasId) {
+    const ov = this.getOverrides(canvasId);
+    return JSON.stringify({
+      added: ov.added,
+      moved: ov.moved,
+      removed: [...ov.removed],
+    });
+  },
+
+  loadOverrides: function (canvasId, json) {
+    try {
+      const data = JSON.parse(json);
+      const canvas = document.getElementById(canvasId);
+      if (!canvas || !canvas._worldData) return false;
+      this._overrides[canvasId] = {
+        added: data.added || [],
+        moved: data.moved || {},
+        removed: new Set(data.removed || []),
+      };
+      this._applyOverrides(canvasId);
+      return true;
+    } catch { return false; }
+  },
+
+  resetOverrides: function (canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !canvas._worldData || !canvas._baseObjects) return;
+    // Restore base objects
+    canvas._worldData.objects = JSON.parse(JSON.stringify(canvas._baseObjects));
+    this._overrides[canvasId] = { added: [], moved: {}, removed: new Set() };
+    canvas._editSelectedObj = null;
+    WorldRenderer.render(canvasId, canvas._worldData);
+  },
+
+  _applyOverrides: function (canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !canvas._worldData || !canvas._baseObjects) return;
+    const ov = this.getOverrides(canvasId);
+
+    // Start from base
+    let objects = JSON.parse(JSON.stringify(canvas._baseObjects));
+
+    // Apply removals
+    objects = objects.filter(o => !ov.removed.has(o.id));
+
+    // Apply moves
+    for (const obj of objects) {
+      if (ov.moved[obj.id]) {
+        obj.x = ov.moved[obj.id].x;
+        obj.y = ov.moved[obj.id].y;
+      }
+    }
+
+    // Apply additions
+    objects.push(...ov.added);
+
+    canvas._worldData.objects = objects;
+    WorldRenderer.render(canvasId, canvas._worldData);
+  },
+
   // Edit mode API
   setEditMode: function (canvasId, enabled) {
     const canvas = document.getElementById(canvasId);
@@ -919,6 +1002,7 @@ window.WorldRenderer = {
     const idx = (wd.objects || []).findIndex(o => o.id === canvas._editSelectedObj);
     if (idx >= 0) {
       const removed = wd.objects.splice(idx, 1)[0];
+      WorldRenderer.getOverrides(canvasId).removed.add(removed.id);
       canvas._editSelectedObj = null;
       WorldRenderer.render(canvasId, wd);
       return removed;

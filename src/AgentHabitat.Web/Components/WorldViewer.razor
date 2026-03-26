@@ -134,6 +134,18 @@
                     </div>
                 </div>
 
+                <div style="margin-bottom:var(--sp-3)">
+                    <div class="section-label">Persistence</div>
+                    <div style="display:flex;gap:var(--sp-2)">
+                        <button class="habitat-btn-primary" style="flex:1;font-size:11px" @onclick="SaveEdits">
+                            Save Layout
+                        </button>
+                        <button class="habitat-btn-secondary" style="flex:1" @onclick="ResetEdits">
+                            Reset
+                        </button>
+                    </div>
+                </div>
+
                 <div>
                     <div class="section-label">Add Object</div>
                     <div style="display:flex;gap:var(--sp-1);flex-wrap:wrap">
@@ -189,6 +201,7 @@
     private bool _showMinimap = true;
     private bool _editMode = false;
     private bool _hasEditSelection = false;
+    private string? _savedOverrides = null;
     private WorldRenderData? _renderData;
     private RoomRenderData? _selectedRoom;
     private AgentRenderData? _selectedAgent;
@@ -211,7 +224,11 @@
         _renderData = WorldSvc.ToRenderData(world);
         _selectedRoom = null;
         _selectedAgent = null;
+        _editMode = false;
+        _hasEditSelection = false;
         StateHasChanged();
+        // Reset base snapshot for override layer
+        await JS.InvokeVoidAsync("eval", "document.getElementById('world-canvas')._baseObjects = null");
         await JS.InvokeVoidAsync("WorldRenderer.render", "world-canvas", _renderData);
     }
 
@@ -230,6 +247,21 @@
     private async Task EditRemove()
     {
         await JS.InvokeVoidAsync("WorldRenderer.removeSelectedObject", "world-canvas");
+        _hasEditSelection = false;
+        StateHasChanged();
+    }
+
+    private async Task SaveEdits()
+    {
+        var json = await JS.InvokeAsync<string>("WorldRenderer.saveOverrides", "world-canvas");
+        // In a real app, this would persist to server/file. For now, store in memory.
+        _savedOverrides = json;
+        StateHasChanged();
+    }
+
+    private async Task ResetEdits()
+    {
+        await JS.InvokeVoidAsync("WorldRenderer.resetOverrides", "world-canvas");
         _hasEditSelection = false;
         StateHasChanged();
     }
