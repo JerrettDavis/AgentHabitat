@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AgentHabitat — World Generation Visual Proof</title>
+<style>
+  body { margin: 0; background: #0a0a0f; color: #e0e0e0; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .controls { padding: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .controls label { font-size: 13px; color: #999; }
+  .controls input, .controls select { background: #1a1a24; border: 1px solid #333; color: #e0e0e0; padding: 6px 10px; border-radius: 6px; font-size: 13px; }
+  .controls button { background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .controls button:hover { background: #2563eb; }
+  .grid { display: flex; flex-wrap: wrap; gap: 16px; padding: 16px; justify-content: center; }
+  canvas { border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+  .meta { font-size: 11px; color: #666; text-align: center; margin-top: 4px; }
+  h2 { text-align: center; margin: 16px 0 0; font-size: 18px; color: #ccc; }
+</style>
+</head>
+<body>
+<h2>AgentHabitat — 2D World Generation Proof Pack</h2>
+<div class="controls">
+  <label>Seeds:</label>
+  <input id="seeds" value="alpha-001,alpha-002,alpha-003" size="40">
+  <label>Styles:</label>
+  <select id="style1"><option>retro-office</option><option>forest-lab</option><option>neon-hq</option></select>
+  <select id="style2"><option>forest-lab</option><option>retro-office</option><option>neon-hq</option></select>
+  <label>Size:</label>
+  <input id="width" type="number" value="64" style="width:50px">
+  <input id="height" type="number" value="48" style="width:50px">
+  <button onclick="generate()">Generate All</button>
+  <button onclick="downloadAll()">Download PNGs</button>
+</div>
+<div id="grid" class="grid"></div>
+
+<script>
+// --- Deterministic RNG (matches C# SeededRng: xorshift64*) ---
+class SeededRng {
+  constructor(seed) {
+    const bytes = new Uint8Array(32);
+    const enc = new TextEncoder().encode(seed);
+    // SHA-256 polyfill via simple hash (deterministic, not crypto-grade)
+    let h = 0x9E3779B9n;
+    for (let i = 0; i < enc.length; i++) {
+      h = ((h ^ BigInt(enc[i])) * 2654435761n) & 0xFFFFFFFFFFFFFFFFn;
+    }
+    // Pad to get 8 bytes
+    this.state = h === 0n ? 0x9E3779B97F4A7C15n : h;
+  }
+  nextU64() {
+    this.state ^= this.state >> 12n;
+    this.state ^= (this.state << 25n) & 0xFFFFFFFFFFFFFFFFn;
+    this.state ^= this.state >> 27n;
+    return (this.state * 2685821657736338717n) & 0xFFFFFFFFFFFFFFFFn;
+  }
+  next(min, max) {
+    const span = max - min;
+    if (span <= 0) return min;
+    return min + Number(this.nextU64() % BigInt(span));
+  }
+}
+
+// --- World Generator (matches C# DeterministicWorldGenerator) ---
+const ARCHETYPES = ['CodingRoom', 'ReviewRoom', 'Library', 'Lounge'];
+
+function generateWorld(seed, opts) {
+  const rng = new SeededRng(seed + '|' + opts.style);
+  const rooms = [];
+  let id = 1;
+  for (const arch of ARCHETYPES) {
+    const w = rng.next(8, 14);
+    const h = rng.next(6, 11);
+    let placed, tries = 0;
+    do {
+      const x = rng.next(1, opts.width - w - 1);
+      const y = rng.next(1, opts.height - h - 1);
+      placed = { id: `room-${id}`, archetype: arch, x, y, w, h, cx: x + Math.floor(w/2), cy: y + Math.floor(h/2) };
+      tries++;
+      if (tries > 300) break;
+    } while (rooms.some(r => overlap(r, placed)));
+    rooms.push(placed);
+    id++;
+  }
+  // Add bonus rooms
+  const bonusCount = rng.next(2, 5);
+  for (let i = 0; i < bonusCount; i++) {
+    const arch = ARCHETYPES[rng.next(0, ARCHETYPES.length)];
+    const w = rng.next(6, 10);
+    const h = rng.next(5, 8);
+    let placed, tries = 0;
+    do {
+      const x = rng.next(1, opts.width - w - 1);
+      const y = rng.next(1, opts.height - h - 1);
+      placed = { id: `room-${id}`, archetype: arch, x, y, w, h, cx: x + Math.floor(w/2), cy: y + Math.floor(h/2) };
+      tries++;
+      if (tries > 200) break;
+    } while (rooms.some(r => overlap(r, placed)));
+    if (tries <= 200) { rooms.push(placed); id++; }
+  }
+
+  const walkable = Array.from({length: opts.width}, () => Array(opts.height).fill(false));
+  for (const r of rooms) {
+    for (let x = r.x; x < r.x + r.w; x++)
+      for (let y = r.y; y < r.y + r.h; y++)
+        if (x >= 0 && y >= 0 && x < opts.width && y < opts.height) walkable[x][y] = true;
+  }
+  for (let i = 1; i < rooms.length; i++) {
+    const a = rooms[i-1], b = rooms[i];
+    carveH(a.cx, b.cx, a.cy, walkable, opts);
+    carveV(a.cy, b.cy, b.cx, walkable, opts);
+  }
+
+  // Place objects
+  const objects = [];
+  for (const r of rooms) {
+    const count = rng.next(2, 6);
+    for (let i = 0; i < count; i++) {
+      const ox = rng.next(r.x + 1, r.x + r.w - 1);
+      const oy = rng.next(r.y + 1, r.y + r.h - 1);
+      const type = r.archetype === 'CodingRoom' ? ['desk','monitor','chair'][rng.next(0,3)]
+                 : r.archetype === 'ReviewRoom' ? ['whiteboard','table','chair'][rng.next(0,3)]
+                 : r.archetype === 'Library' ? ['bookshelf','lamp','plant'][rng.next(0,3)]
+                 : ['couch','plant','coffee-table'][rng.next(0,3)];
+      objects.push({ x: ox, y: oy, type, room: r.id });
+    }
+  }
+
+  return { rooms, walkable, objects, seed, opts };
+}
+
+function overlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+function carveH(x1, x2, y, w, opts) {
+  for (let x = Math.min(x1,x2); x <= Math.max(x1,x2); x++)
+    if (x >= 0 && x < opts.width && y >= 0 && y < opts.height) w[x][y] = true;
+}
+function carveV(y1, y2, x, w, opts) {
+  for (let y = Math.min(y1,y2); y <= Math.max(y1,y2); y++)
+    if (x >= 0 && x < opts.width && y >= 0 && y < opts.height) w[x][y] = true;
+}
+
+// --- Style Palettes ---
+const PALETTES = {
+  'retro-office': {
+    bg: '#1a1a2e', wall: '#16213e', floor: '#0f3460', corridor: '#1a1a3e',
+    rooms: { CodingRoom: '#1e3a5f', ReviewRoom: '#2d4a2e', Library: '#4a3728', Lounge: '#3d2c4a' },
+    grid: '#0d1b2a', label: '#8ecae6', obj: '#e9c46a', accent: '#e76f51',
+  },
+  'forest-lab': {
+    bg: '#0a1f0e', wall: '#1a3a1e', floor: '#2d5a32', corridor: '#1a3a20',
+    rooms: { CodingRoom: '#2d6a3f', ReviewRoom: '#3a7a4a', Library: '#5a4a28', Lounge: '#4a6a3a' },
+    grid: '#0d2a12', label: '#a8d5ba', obj: '#f4d35e', accent: '#ee6c4d',
+  },
+  'neon-hq': {
+    bg: '#0a0a1a', wall: '#1a0a2e', floor: '#2a1a4e', corridor: '#1a0a3e',
+    rooms: { CodingRoom: '#3a1a6f', ReviewRoom: '#1a3a6f', Library: '#5a2a1f', Lounge: '#2a4a5f' },
+    grid: '#0d0a2a', label: '#c084fc', obj: '#22d3ee', accent: '#f472b6',
+  },
+};
+
+const OBJ_ICONS = {
+  desk: '🖥️', monitor: '💻', chair: '🪑', whiteboard: '📋', table: '📊',
+  bookshelf: '📚', lamp: '💡', plant: '🌿', couch: '🛋️', 'coffee-table': '☕',
+};
+
+// --- Renderer ---
+function render(canvas, world) {
+  const pal = PALETTES[world.opts.style] || PALETTES['retro-office'];
+  const tileSize = 12;
+  const W = world.opts.width, H = world.opts.height;
+  canvas.width = W * tileSize;
+  canvas.height = H * tileSize;
+  const ctx = canvas.getContext('2d');
+
+  // Background
+  ctx.fillStyle = pal.bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Grid lines
+  ctx.strokeStyle = pal.grid;
+  ctx.lineWidth = 0.3;
+  for (let x = 0; x <= W; x++) { ctx.beginPath(); ctx.moveTo(x*tileSize,0); ctx.lineTo(x*tileSize,H*tileSize); ctx.stroke(); }
+  for (let y = 0; y <= H; y++) { ctx.beginPath(); ctx.moveTo(0,y*tileSize); ctx.lineTo(W*tileSize,y*tileSize); ctx.stroke(); }
+
+  // Corridors
+  for (let x = 0; x < W; x++) {
+    for (let y = 0; y < H; y++) {
+      if (world.walkable[x][y]) {
+        const inRoom = world.rooms.some(r => x >= r.x && x < r.x+r.w && y >= r.y && y < r.y+r.h);
+        if (!inRoom) {
+          ctx.fillStyle = pal.corridor;
+          ctx.fillRect(x*tileSize, y*tileSize, tileSize, tileSize);
+        }
+      }
+    }
+  }
+
+  // Rooms
+  for (const r of world.rooms) {
+    const rc = pal.rooms[r.archetype] || pal.floor;
+    // Floor
+    ctx.fillStyle = rc;
+    ctx.fillRect(r.x*tileSize, r.y*tileSize, r.w*tileSize, r.h*tileSize);
+    // Wall border
+    ctx.strokeStyle = pal.wall;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(r.x*tileSize+1, r.y*tileSize+1, r.w*tileSize-2, r.h*tileSize-2);
+    // Inner glow
+    ctx.strokeStyle = pal.accent + '30';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(r.x*tileSize+3, r.y*tileSize+3, r.w*tileSize-6, r.h*tileSize-6);
+    // Label
+    ctx.fillStyle = pal.label;
+    ctx.font = 'bold 9px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(r.archetype, r.cx*tileSize, (r.y+1.5)*tileSize);
+    // ID
+    ctx.fillStyle = pal.label + '80';
+    ctx.font = '7px monospace';
+    ctx.fillText(r.id, r.cx*tileSize, (r.y+r.h-0.5)*tileSize);
+  }
+
+  // Objects
+  ctx.font = '8px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const obj of world.objects) {
+    const icon = OBJ_ICONS[obj.type] || '•';
+    ctx.fillText(icon, obj.x*tileSize + tileSize/2, obj.y*tileSize + tileSize/2);
+  }
+
+  // Title bar
+  ctx.fillStyle = '#00000080';
+  ctx.fillRect(0, 0, canvas.width, 18);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 10px system-ui';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(`seed: ${world.seed}  style: ${world.opts.style}  rooms: ${world.rooms.length}  objects: ${world.objects.length}`, 6, 4);
+}
+
+// --- UI ---
+const canvases = [];
+
+function generate() {
+  const seeds = document.getElementById('seeds').value.split(',').map(s => s.trim()).filter(Boolean);
+  const styles = [document.getElementById('style1').value, document.getElementById('style2').value];
+  const width = parseInt(document.getElementById('width').value) || 64;
+  const height = parseInt(document.getElementById('height').value) || 48;
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  canvases.length = 0;
+
+  for (const seed of seeds) {
+    for (const style of styles) {
+      const div = document.createElement('div');
+      const canvas = document.createElement('canvas');
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const world = generateWorld(seed, { width, height, style });
+      render(canvas, world);
+      meta.textContent = `${seed} / ${style} — ${world.rooms.length} rooms, ${world.objects.length} objects`;
+      div.appendChild(canvas);
+      div.appendChild(meta);
+      grid.appendChild(div);
+      canvases.push({ canvas, seed, style });
+    }
+  }
+}
+
+function downloadAll() {
+  for (const { canvas, seed, style } of canvases) {
+    const link = document.createElement('a');
+    link.download = `worldgen-${seed}-${style}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }
+}
+
+// Auto-generate on load
+generate();
+</script>
+</body>
+</html>

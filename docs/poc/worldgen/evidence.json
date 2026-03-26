@@ -1,0 +1,106 @@
+{
+  "generated": "2026-03-26T05:32:39.806Z",
+  "seeds": [
+    "alpha-001",
+    "alpha-002",
+    "alpha-003"
+  ],
+  "styles": [
+    "retro-office",
+    "forest-lab",
+    "neon-hq"
+  ],
+  "gridSize": "64x48",
+  "screenshots": [
+    {
+      "file": "worldgen-alpha-001-retro-office.png",
+      "seed": "alpha-001",
+      "style": "retro-office",
+      "options": {
+        "width": 64,
+        "height": 48,
+        "corridorWidth": 1
+      }
+    },
+    {
+      "file": "worldgen-alpha-001-forest-lab.png",
+      "seed": "alpha-001",
+      "style": "forest-lab",
+      "options": {
+        "width": 64,
+        "height": 48,
+        "corridorWidth": 1
+      }
+    },
+    {
+      "file": "worldgen-alpha-001-neon-hq.png",
+      "seed": "alpha-001",
+      "style": "neon-hq",
+      "options": {
+        "width": 64,
+        "height": 48,
+        "corridorWidth": 1
+      }
+    },
+    {
+      "file": "worldgen-alpha-002-retro-office.png",
+      "seed": "alpha-002",
+      "style": "retro-office",
+      "options": {
+        "width": 64,
+        "height": 48,
+        "corridorWidth": 1
+      }
+    },
+    {
+      "file": "worldgen-alpha-002-forest-lab.png",
+      "seed": "alpha-002",
+      "style": "forest-lab",
+      "options": {
+        "width": 64,
+        "height": 48,
+        "corridorWidth": 1
+      }
+    },
+    {
+      "file": "worldgen-alpha-002-neon-hq.png",
+      "seed": "alpha-002",
+      "style": "neon-hq",
+      "options": {
+        "width": 64,
+        "height": 48,
+        "corridorWidth": 1
+      }
+    },
+    {
+      "file": "worldgen-alpha-003-retro-office.png",
+      "seed": "alpha-003",
+      "style": "retro-office",
+      "options": {
+        "width": 64,
+        "height": 48,
+        "corridorWidth": 1
+      }
+    },
+    {
+      "file": "worldgen-alpha-003-forest-lab.png",
+      "seed": "alpha-003",
+      "style": "forest-lab",
+      "options": {
+        "width": 64,
+        "height": 48,
+        "corridorWidth": 1
+      }
+    },
+    {
+      "file": "worldgen-alpha-003-neon-hq.png",
+      "seed": "alpha-003",
+      "style": "neon-hq",
+      "options": {
+        "width": 64,
+        "height": 48,
+        "corridorWidth": 1
+      }
+    }
+  ]
+}
