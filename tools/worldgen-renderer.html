@@ -25,8 +25,8 @@
   <select id="style1"><option>retro-office</option><option>forest-lab</option><option>neon-hq</option></select>
   <select id="style2"><option>forest-lab</option><option>retro-office</option><option>neon-hq</option></select>
   <label>Size:</label>
-  <input id="width" type="number" value="64" style="width:50px">
-  <input id="height" type="number" value="48" style="width:50px">
+  <input id="width" type="number" value="32" style="width:50px">
+  <input id="height" type="number" value="24" style="width:50px">
   <button onclick="generate()">Generate All</button>
   <button onclick="downloadAll()">Download PNGs</button>
 </div>
@@ -246,7 +246,7 @@ const SPRITE_PALS = {
   'neon-hq': ['#0a0a1a','#1a0a2e','#2a1a4e','#1a1a3e','#3a2a5e','#4a3a6e','#3a1a1a','#5a2a2a','#b0b0b0','#505060','#22d3ee','#f472b6','#c084fc','#1a3a1a','#2a5a3a','#f0f0ff'],
 };
 
-function drawPixelSprite(ctx, name, px, py, style) {
+function drawPixelSprite(ctx, name, px, py, style, scale = 2) {
   const sprite = PIXEL_SPRITES[name] || PIXEL_SPRITES['desk'];
   const pal = SPRITE_PALS[style] || SPRITE_PALS['retro-office'];
   for (let row = 0; row < sprite.length; row++) {
@@ -254,7 +254,7 @@ function drawPixelSprite(ctx, name, px, py, style) {
       const ch = sprite[row][col];
       if (ch === '.') continue;
       ctx.fillStyle = pal[parseInt(ch, 16)];
-      ctx.fillRect(px + col, py + row, 1, 1);
+      ctx.fillRect(px + col * scale, py + row * scale, scale, scale);
     }
   }
 }
@@ -262,10 +262,10 @@ function drawPixelSprite(ctx, name, px, py, style) {
 // --- Renderer ---
 function render(canvas, world) {
   const pal = PALETTES[world.opts.style] || PALETTES['retro-office'];
-  const tileSize = 14;
+  const tileSize = 32;
   const W = world.opts.width, H = world.opts.height;
-  const pad = 24; // top padding for title
-  const legendW = 160; // sidebar width
+  const pad = 32; // top padding for title
+  const legendW = 180; // sidebar width
   canvas.width = W * tileSize + legendW;
   canvas.height = H * tileSize + pad;
   const ctx = canvas.getContext('2d');
@@ -342,14 +342,14 @@ function render(canvas, world) {
     ctx.fillRect(rx + rw - cs - 1, ry + rh - cs - 1, cs, cs);
 
     // Room label with background pill
-    ctx.font = 'bold 10px system-ui';
+    ctx.font = 'bold 14px system-ui';
     ctx.textAlign = 'center';
     const labelText = r.archetype.replace(/Room$/, ' Room');
     const tm = ctx.measureText(labelText);
-    const lx = r.cx * tileSize, ly = (r.y + 1.2) * tileSize + oY;
-    ctx.fillStyle = '#00000060';
+    const lx = r.cx * tileSize, ly = (r.y + 0.8) * tileSize + oY;
+    ctx.fillStyle = '#00000070';
     ctx.beginPath();
-    ctx.roundRect(lx - tm.width/2 - 4, ly - 8, tm.width + 8, 14, 3);
+    ctx.roundRect(lx - tm.width/2 - 6, ly - 10, tm.width + 12, 20, 4);
     ctx.fill();
     ctx.fillStyle = pal.label;
     ctx.fillText(labelText, lx, ly);
@@ -385,64 +385,87 @@ function render(canvas, world) {
     }
   }
 
-  // Objects as pixel sprites
+  // Objects as pixel sprites (scaled to tile size)
   for (const obj of world.objects) {
-    const ox = obj.x * tileSize - 1;
-    const oy = obj.y * tileSize + oY - 1;
+    const ox = obj.x * tileSize;
+    const oy = obj.y * tileSize + oY;
     const sprName = obj.type === 'table' ? 'desk' : obj.type;
     if (PIXEL_SPRITES[sprName]) {
-      drawPixelSprite(ctx, sprName, ox, oy, world.opts.style);
+      drawPixelSprite(ctx, sprName, ox, oy, world.opts.style, 2);
     } else {
-      // Fallback: small colored dot
+      // Fallback: small colored square
       ctx.fillStyle = pal.obj + '80';
-      ctx.beginPath();
-      ctx.arc(obj.x*tileSize + tileSize/2, obj.y*tileSize + oY + tileSize/2, 3, 0, Math.PI*2);
-      ctx.fill();
+      ctx.fillRect(ox + 8, oy + 8, 16, 16);
     }
   }
 
-  // Agents
+  // Agents as pixel art humanoid sprites
   for (const agent of (world.agents || [])) {
-    const ax = agent.x * tileSize + tileSize / 2;
-    const ay = agent.y * tileSize + oY + tileSize / 2;
-    const statusColor = agent.status === 'active' ? '#22c55e' : agent.status === 'idle' ? '#eab308' : '#666';
+    const ax = agent.x * tileSize;
+    const ay = agent.y * tileSize + oY;
+    const sc = agent.status === 'active' ? '#22c55e' : agent.status === 'idle' ? '#eab308' : '#666';
+    const c = agent.color;
 
-    // Agent glow ring
+    // Shadow
+    ctx.fillStyle = '#00000030';
     ctx.beginPath();
-    ctx.arc(ax, ay, tileSize * 1.1, 0, Math.PI * 2);
-    ctx.fillStyle = agent.color + '25';
+    ctx.ellipse(ax + 16, ay + 30, 10, 4, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Agent body circle
-    ctx.beginPath();
-    ctx.arc(ax, ay, tileSize * 0.7, 0, Math.PI * 2);
-    ctx.fillStyle = agent.color;
-    ctx.fill();
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    // Body (simplified humanoid)
+    // Head
+    ctx.fillStyle = '#ffd5a0';
+    ctx.fillRect(ax + 11, ay + 2, 10, 10);
+    // Hair
+    ctx.fillStyle = c;
+    ctx.fillRect(ax + 10, ay + 1, 12, 4);
+    ctx.fillRect(ax + 10, ay + 1, 3, 8);
+    // Eyes
+    ctx.fillStyle = '#000';
+    ctx.fillRect(ax + 13, ay + 6, 2, 2);
+    ctx.fillRect(ax + 18, ay + 6, 2, 2);
+    // Mouth
+    ctx.fillStyle = '#c08060';
+    ctx.fillRect(ax + 14, ay + 9, 4, 1);
+    // Shirt
+    ctx.fillStyle = c;
+    ctx.fillRect(ax + 10, ay + 12, 12, 10);
+    ctx.fillRect(ax + 7, ay + 13, 4, 8); // left arm
+    ctx.fillRect(ax + 21, ay + 13, 4, 8); // right arm
+    // Hands
+    ctx.fillStyle = '#ffd5a0';
+    ctx.fillRect(ax + 8, ay + 21, 3, 3);
+    ctx.fillRect(ax + 21, ay + 21, 3, 3);
+    // Pants
+    ctx.fillStyle = '#334';
+    ctx.fillRect(ax + 11, ay + 22, 5, 6);
+    ctx.fillRect(ax + 17, ay + 22, 5, 6);
+    // Shoes
+    ctx.fillStyle = '#222';
+    ctx.fillRect(ax + 10, ay + 28, 6, 2);
+    ctx.fillRect(ax + 17, ay + 28, 6, 2);
 
-    // Status dot
+    // Status indicator
     ctx.beginPath();
-    ctx.arc(ax + tileSize * 0.5, ay - tileSize * 0.5, 3, 0, Math.PI * 2);
-    ctx.fillStyle = statusColor;
+    ctx.arc(ax + 24, ay + 3, 4, 0, Math.PI * 2);
+    ctx.fillStyle = sc;
     ctx.fill();
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // Agent name label
-    ctx.font = 'bold 8px system-ui';
+    // Name label
+    ctx.font = 'bold 11px system-ui';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     const nameText = agent.name;
     const nm = ctx.measureText(nameText);
-    ctx.fillStyle = '#000000aa';
+    ctx.fillStyle = '#000000bb';
     ctx.beginPath();
-    ctx.roundRect(ax - nm.width / 2 - 3, ay + tileSize * 0.8, nm.width + 6, 11, 2);
+    ctx.roundRect(ax + 16 - nm.width / 2 - 4, ay - 14, nm.width + 8, 14, 3);
     ctx.fill();
     ctx.fillStyle = '#fff';
-    ctx.fillText(nameText, ax, ay + tileSize * 0.8 + 1);
+    ctx.fillText(nameText, ax + 16, ay - 13);
   }
 
   // Title bar
