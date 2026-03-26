@@ -408,6 +408,35 @@ window.WorldRenderer = {
       canvas._clickHandlerSet = true;
       canvas.style.cursor = 'pointer';
 
+      // Hover tooltip
+      canvas.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const wd = canvas._worldData;
+        const ts = canvas._tileSize;
+        if (!wd) return;
+
+        const tx = Math.floor(mx / ts);
+        const ty = Math.floor(my / ts);
+
+        const hovAgent = (wd.agents || []).find(a => a.x === tx && a.y === ty);
+        const hovRoom = wd.rooms.find(r =>
+          tx >= r.x && tx < r.x + r.width && ty >= r.y && ty < r.y + r.height
+        );
+
+        if (hovAgent) {
+          canvas.title = `${hovAgent.name || hovAgent.id} (${hovAgent.role || 'agent'}) — ${hovAgent.status}`;
+          canvas.style.cursor = 'pointer';
+        } else if (hovRoom) {
+          canvas.title = `${hovRoom.archetype.replace('Room', ' Room')} [${hovRoom.id}]`;
+          canvas.style.cursor = 'pointer';
+        } else {
+          canvas.title = '';
+          canvas.style.cursor = 'default';
+        }
+      });
+
       // Right-click: move last selected agent to clicked tile
       canvas.addEventListener('contextmenu', (e) => {
         e.preventDefault();
