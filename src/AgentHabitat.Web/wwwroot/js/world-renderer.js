@@ -69,14 +69,15 @@ window.WorldRenderer = {
         const light = tileLighting(x, y, W, H);
         const litTint = { r: tint.r * light, g: tint.g * light, b: tint.b * light };
 
+        const room = tile === 2 ? worldData.rooms.find(r =>
+          x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height
+        ) : null;
+
         if (tile === 0) {
           ctx.fillStyle = tintColor(pal.void, litTint);
         } else if (tile === 1) {
           ctx.fillStyle = tintColor(pal.corridor, litTint);
         } else {
-          const room = worldData.rooms.find(r =>
-            x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height
-          );
           const baseColor = room ? (pal.rooms[room.archetype] || pal.roomFloor) : pal.roomFloor;
           ctx.fillStyle = tintColor(baseColor, litTint);
         }
