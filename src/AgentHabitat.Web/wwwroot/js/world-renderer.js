@@ -398,6 +398,50 @@ window.WorldRenderer = {
       6, 14
     );
 
+    // Minimap (bottom-right corner)
+    const mmScale = 4;
+    const mmW = W * mmScale, mmH = H * mmScale;
+    const mmX = canvas.width - mmW - 10, mmY = canvas.height - mmH - 10;
+    // Background
+    ctx.fillStyle = '#000000cc';
+    ctx.beginPath();
+    ctx.roundRect(mmX - 3, mmY - 3, mmW + 6, mmH + 6, 4);
+    ctx.fill();
+    // Tiles
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const tile = worldData.tiles[y * W + x];
+        if (tile === 0) continue;
+        const room = tile === 2 ? worldData.rooms.find(r =>
+          x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height
+        ) : null;
+        ctx.fillStyle = room ? (pal.rooms[room.archetype] || pal.roomFloor) : pal.corridor;
+        ctx.fillRect(mmX + x * mmScale, mmY + y * mmScale, mmScale, mmScale);
+      }
+    }
+    // Room borders on minimap
+    for (const room of worldData.rooms) {
+      ctx.strokeStyle = pal.wall;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(mmX + room.x * mmScale, mmY + room.y * mmScale,
+        room.width * mmScale, room.height * mmScale);
+    }
+    // Agent dots on minimap
+    for (const agent of (worldData.agents || [])) {
+      ctx.fillStyle = agent.color;
+      ctx.beginPath();
+      ctx.arc(mmX + agent.x * mmScale + mmScale/2, mmY + agent.y * mmScale + mmScale/2, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    }
+    // Minimap label
+    ctx.fillStyle = '#888';
+    ctx.font = '8px system-ui';
+    ctx.textAlign = 'right';
+    ctx.fillText('MAP', mmX + mmW, mmY - 5);
+
     // Store world data for click handler
     canvas._worldData = worldData;
     canvas._tileSize = tileSize;
