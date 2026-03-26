@@ -304,8 +304,15 @@ function drawPixelSprite(ctx, name, px, py, style, scale = 2, overrideColor = nu
 }
 
 // --- Heightmap Lighting Engine ---
-const LIGHT = { x: -0.4, y: -0.6, z: 0.7 };
+// Theme-specific light directions and tints
+const THEME_LIGHTS = {
+  'retro-office': { dir: { x: -0.4, y: -0.6, z: 0.7 }, tint: { r: 1.1, g: 1.0, b: 0.9 }, contrast: 1.3 },  // warm
+  'forest-lab':   { dir: { x: -0.3, y: -0.5, z: 0.8 }, tint: { r: 0.9, g: 1.1, b: 0.95 }, contrast: 1.2 }, // green
+  'neon-hq':      { dir: { x: -0.5, y: -0.4, z: 0.7 }, tint: { r: 0.9, g: 0.9, b: 1.15 }, contrast: 1.4 }, // cool
+};
+let currentThemeLight = THEME_LIGHTS['retro-office'];
 function computeLight(hm, w, h) {
+  const L = currentThemeLight;
   const l = new Float32Array(w * h);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const i = y * w + x;
@@ -314,7 +321,8 @@ function computeLight(hm, w, h) {
     const hU = y > 0 ? hm[i-w] : hm[i], hD = y < h-1 ? hm[i+w] : hm[i];
     const nx = (hL-hR)*0.5, ny = (hU-hD)*0.5, nz = 1;
     const len = Math.sqrt(nx*nx+ny*ny+nz*nz);
-    l[i] = Math.max(0.3, Math.min(1.4, 0.4 + (nx/len*LIGHT.x + ny/len*LIGHT.y + nz/len*LIGHT.z)));
+    const dot = nx/len*L.dir.x + ny/len*L.dir.y + nz/len*L.dir.z;
+    l[i] = Math.max(0.2, Math.min(1.6, 0.3 + dot * L.contrast));
   }
   return l;
 }
@@ -323,12 +331,13 @@ function rgb2hex(r,g,b) { return '#'+[r,g,b].map(c=>Math.max(0,Math.min(255,Math
 
 function renderLitSprite(ctx, spr, px, py) {
   const light = computeLight(spr.hm, spr.w, spr.h);
+  const tint = currentThemeLight.tint;
   for (let y = 0; y < spr.h; y++) for (let x = 0; x < spr.w; x++) {
     const i = y * spr.w + x;
     if (!spr.c[i]) continue;
     const rgb = hex2rgb(spr.c[i]);
     const b = light[i];
-    ctx.fillStyle = rgb2hex(rgb.r*b, rgb.g*b, rgb.b*b);
+    ctx.fillStyle = rgb2hex(rgb.r * b * tint.r, rgb.g * b * tint.g, rgb.b * b * tint.b);
     ctx.fillRect(px + x, py + y, 1, 1);
   }
 }
@@ -439,6 +448,7 @@ const SPRITES_32_DATA = {
 
 // --- Renderer ---
 function render(canvas, world) {
+  currentThemeLight = THEME_LIGHTS[world.opts.style] || THEME_LIGHTS['retro-office'];
   const pal = PALETTES[world.opts.style] || PALETTES['retro-office'];
   const tileSize = 32;
   const W = world.opts.width, H = world.opts.height;
@@ -623,86 +633,67 @@ function render(canvas, world) {
     ctx.ellipse(ax + 16, ay + 30, 12, 5, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 1px dark outline
-    ctx.fillStyle = '#000';
-    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-      ctx.fillRect(ax + 10 + dx, ay + 1 + dy, 12, 11);
-      ctx.fillRect(ax + 9 + dx, ay + 12 + dy, 14, 12);
-      ctx.fillRect(ax + 6 + dx, ay + 13 + dy, 4, 9);
-      ctx.fillRect(ax + 22 + dx, ay + 13 + dy, 4, 9);
+    // Build agent as heightmap sprite for proper lighting
+    const agentSpr = { w: 32, h: 32, c: new Array(32*32).fill(null), hm: new Float32Array(32*32) };
+    const aw = 32;
+    function ap(x, y, col, depth) {
+      if (x >= 0 && y >= 0 && x < 32 && y < 32) {
+        agentSpr.c[y * aw + x] = col;
+        agentSpr.hm[y * aw + x] = Math.max(agentSpr.hm[y * aw + x], depth);
+      }
     }
-
-    // Body (detailed humanoid — RPG style)
-    // Hair (fuller)
-    ctx.fillStyle = c;
-    ctx.fillRect(ax + 9, ay + 0, 14, 5);
-    ctx.fillRect(ax + 9, ay + 0, 3, 10);
-    ctx.fillRect(ax + 20, ay + 0, 3, 10);
-    // Head (skin)
-    ctx.fillStyle = '#ffd5a0';
-    ctx.fillRect(ax + 11, ay + 2, 10, 10);
-    // Face details
-    ctx.fillStyle = '#f0c090'; // cheek shading
-    ctx.fillRect(ax + 11, ay + 7, 2, 3);
-    ctx.fillRect(ax + 19, ay + 7, 2, 3);
-    // Eyes (bigger, more detailed)
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(ax + 13, ay + 5, 3, 3);
-    ctx.fillRect(ax + 18, ay + 5, 3, 3);
-    ctx.fillStyle = '#000';
-    ctx.fillRect(ax + 14, ay + 6, 2, 2);
-    ctx.fillRect(ax + 19, ay + 6, 2, 2);
-    // Eye highlights
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(ax + 14, ay + 5, 1, 1);
-    ctx.fillRect(ax + 19, ay + 5, 1, 1);
+    function aRect(x1, y1, w, h, col, depth) {
+      for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) ap(x1+dx, y1+dy, col, depth);
+    }
+    // Hair
+    aRect(9, 0, 14, 5, c, 7);
+    aRect(9, 0, 3, 10, c, 6);
+    aRect(20, 0, 3, 10, c, 6);
+    // Head
+    aRect(11, 2, 10, 10, '#ffd5a0', 8);
+    // Cheeks
+    aRect(11, 7, 2, 3, '#f0c090', 7.5);
+    aRect(19, 7, 2, 3, '#f0c090', 7.5);
+    // Eyes
+    aRect(13, 5, 3, 3, '#fff', 8.5);
+    aRect(18, 5, 3, 3, '#fff', 8.5);
+    aRect(14, 6, 2, 2, '#000', 9);
+    aRect(19, 6, 2, 2, '#000', 9);
+    ap(14, 5, '#fff', 9.5); ap(19, 5, '#fff', 9.5); // highlights
     // Mouth
-    ctx.fillStyle = '#c08060';
-    ctx.fillRect(ax + 14, ay + 9, 4, 1);
-    ctx.fillRect(ax + 15, ay + 10, 2, 1);
-    // Shirt (with shading)
-    ctx.fillStyle = c;
-    ctx.fillRect(ax + 10, ay + 12, 12, 11);
-    // Shirt highlight
-    const cBright = c + 'cc';
-    ctx.fillStyle = '#ffffff15';
-    ctx.fillRect(ax + 12, ay + 13, 4, 8);
+    aRect(14, 9, 4, 1, '#c08060', 7.8);
+    // Shirt
+    aRect(10, 12, 12, 11, c, 5);
     // Collar
-    ctx.fillStyle = '#ffffff20';
-    ctx.fillRect(ax + 13, ay + 12, 6, 2);
+    aRect(13, 12, 6, 2, '#ffffff', 5.5);
     // Arms
-    ctx.fillStyle = c;
-    ctx.fillRect(ax + 6, ay + 13, 5, 9);
-    ctx.fillRect(ax + 21, ay + 13, 5, 9);
-    // Arm shading
-    ctx.fillStyle = '#00000020';
-    ctx.fillRect(ax + 6, ay + 13, 2, 9);
-    ctx.fillRect(ax + 24, ay + 13, 2, 9);
+    aRect(6, 13, 5, 9, c, 4);
+    aRect(21, 13, 5, 9, c, 4);
     // Hands
-    ctx.fillStyle = '#ffd5a0';
-    ctx.fillRect(ax + 7, ay + 22, 4, 3);
-    ctx.fillRect(ax + 21, ay + 22, 4, 3);
-    // Pants
-    ctx.fillStyle = '#2a2a3a';
-    ctx.fillRect(ax + 11, ay + 23, 5, 6);
-    ctx.fillRect(ax + 17, ay + 23, 5, 6);
-    // Pants highlight
-    ctx.fillStyle = '#ffffff08';
-    ctx.fillRect(ax + 13, ay + 24, 2, 4);
-    ctx.fillRect(ax + 19, ay + 24, 2, 4);
+    aRect(7, 22, 4, 3, '#ffd5a0', 3);
+    aRect(21, 22, 4, 3, '#ffd5a0', 3);
     // Belt
-    ctx.fillStyle = '#444';
-    ctx.fillRect(ax + 10, ay + 22, 12, 2);
-    ctx.fillStyle = '#888';
-    ctx.fillRect(ax + 15, ay + 22, 2, 2); // buckle
+    aRect(10, 22, 12, 2, '#444444', 5.2);
+    aRect(15, 22, 2, 2, '#888888', 5.5); // buckle
+    // Pants
+    aRect(11, 24, 5, 5, '#2a2a3a', 4);
+    aRect(17, 24, 5, 5, '#2a2a3a', 4);
     // Shoes
-    ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(ax + 9, ay + 29, 7, 2);
-    ctx.fillRect(ax + 16, ay + 29, 7, 2);
-    // Shoe highlight
-    ctx.fillStyle = '#333';
-    ctx.fillRect(ax + 10, ay + 29, 5, 1);
-    ctx.fillRect(ax + 17, ay + 29, 5, 1);
+    aRect(9, 29, 7, 2, '#1a1a1a', 2);
+    aRect(16, 29, 7, 2, '#1a1a1a', 2);
+
+    // 1px outline pass
+    ctx.fillStyle = '#000';
+    for (let sy = 0; sy < 32; sy++) for (let sx = 0; sx < 32; sx++) {
+      if (!agentSpr.c[sy*32+sx]) continue;
+      for (const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        const nx = sx+dx, ny = sy+dy;
+        if (nx<0||ny<0||nx>=32||ny>=32||!agentSpr.c[ny*32+nx])
+          ctx.fillRect(ax + sx, ay + sy, 1, 1);
+      }
+    }
+    // Render lit agent
+    renderLitSprite(ctx, agentSpr, ax, ay);
 
     // Status indicator
     ctx.beginPath();
