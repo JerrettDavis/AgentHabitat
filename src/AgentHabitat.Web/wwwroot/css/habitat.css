@@ -9,11 +9,11 @@
   --bg-surface: #222840;
   --bg-hover: #2a3150;
 
-  /* Text hierarchy */
-  --text-primary: #e8ecf4;
-  --text-secondary: #a0aabe;
-  --text-muted: #6a7490;
-  --text-dim: #454d64;
+  /* Text hierarchy (contrast-tuned for scanability) */
+  --text-primary: #eaeff6;
+  --text-secondary: #b0b8cc;
+  --text-muted: #7a86a0;
+  --text-dim: #525c74;
 
   /* Accent colors */
   --accent-blue: #3b82f6;
@@ -68,28 +68,30 @@ body {
 
 /* World viewer shell */
 .habitat-shell {
-  max-width: 1400px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: var(--sp-4);
+  padding: var(--sp-6);
 }
 
 .habitat-header {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--sp-3);
-  margin-bottom: var(--sp-4);
+  margin-bottom: var(--sp-6);
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .habitat-header h1 {
-  font: var(--text-heading);
+  font: 700 20px/1.2 var(--font-sans);
   color: var(--text-primary);
   margin: 0;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
 }
 
 .habitat-header .subtitle {
   font: var(--text-caption);
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 /* Controls bar */
@@ -101,7 +103,7 @@ body {
   background: var(--bg-secondary);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  margin-bottom: var(--sp-4);
+  margin-bottom: var(--sp-6);
   flex-wrap: wrap;
 }
 
@@ -161,15 +163,17 @@ body {
 /* Stats bar */
 .habitat-stats {
   display: flex;
-  gap: var(--sp-4);
+  gap: var(--sp-5);
   margin-bottom: var(--sp-3);
   font: var(--text-caption);
-  color: var(--text-muted);
+  color: var(--text-secondary);
+  padding: var(--sp-2) 0;
 }
 
 .habitat-stats strong {
   color: var(--text-primary);
   font-weight: 600;
+  margin-left: var(--sp-1);
 }
 
 /* Agent cards */
@@ -186,7 +190,7 @@ body {
   gap: var(--sp-2);
   background: var(--bg-secondary);
   padding: var(--sp-2) var(--sp-3);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
   transition: border-color 0.15s;
 }
@@ -217,18 +221,20 @@ body {
   border-radius: 50%;
 }
 
-/* Main layout */
+/* Main layout — canvas is hero */
 .habitat-main {
   display: flex;
   gap: var(--sp-4);
-  flex-wrap: wrap;
+  align-items: flex-start;
 }
 
 .habitat-canvas-wrap {
+  flex: 1;
+  min-width: 0;
   overflow: auto;
-  max-width: 100%;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-subtle);
 }
 
 .habitat-canvas-wrap canvas {
@@ -236,14 +242,29 @@ body {
   border-radius: var(--radius-lg);
 }
 
-/* Detail panel */
+/* Detail panel — contextual sidebar */
 .habitat-panel {
   width: 260px;
+  flex-shrink: 0;
   background: var(--bg-secondary);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   padding: var(--sp-4);
   box-shadow: var(--shadow-md);
+}
+
+/* Responsive: stack on narrow viewports */
+@media (max-width: 900px) {
+  .habitat-main {
+    flex-direction: column;
+  }
+  .habitat-panel {
+    width: 100%;
+  }
+  .habitat-header {
+    flex-direction: column;
+    gap: var(--sp-1);
+  }
 }
 
 .habitat-panel h3 {
