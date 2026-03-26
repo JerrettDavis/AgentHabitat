@@ -11,6 +11,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgentHabitat.Core.Tests", "tests\AgentHabitat.Core.Tests\AgentHabitat.Core.Tests.csproj", "{9D5A69FF-EF90-40C9-91C8-D6D08FD1336B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgentHabitat.Web", "src\AgentHabitat.Web\AgentHabitat.Web.csproj", "{6CA787EC-99C6-40A7-8043-F8E570E75D2F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -45,6 +47,18 @@ Global
 		{9D5A69FF-EF90-40C9-91C8-D6D08FD1336B}.Release|x64.Build.0 = Release|Any CPU
 		{9D5A69FF-EF90-40C9-91C8-D6D08FD1336B}.Release|x86.ActiveCfg = Release|Any CPU
 		{9D5A69FF-EF90-40C9-91C8-D6D08FD1336B}.Release|x86.Build.0 = Release|Any CPU
+		{6CA787EC-99C6-40A7-8043-F8E570E75D2F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6CA787EC-99C6-40A7-8043-F8E570E75D2F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6CA787EC-99C6-40A7-8043-F8E570E75D2F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{6CA787EC-99C6-40A7-8043-F8E570E75D2F}.Debug|x64.Build.0 = Debug|Any CPU
+		{6CA787EC-99C6-40A7-8043-F8E570E75D2F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{6CA787EC-99C6-40A7-8043-F8E570E75D2F}.Debug|x86.Build.0 = Debug|Any CPU
+		{6CA787EC-99C6-40A7-8043-F8E570E75D2F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6CA787EC-99C6-40A7-8043-F8E570E75D2F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6CA787EC-99C6-40A7-8043-F8E570E75D2F}.Release|x64.ActiveCfg = Release|Any CPU
+		{6CA787EC-99C6-40A7-8043-F8E570E75D2F}.Release|x64.Build.0 = Release|Any CPU
+		{6CA787EC-99C6-40A7-8043-F8E570E75D2F}.Release|x86.ActiveCfg = Release|Any CPU
+		{6CA787EC-99C6-40A7-8043-F8E570E75D2F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -52,5 +66,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{726BA174-34F4-47A1-9287-8DB0DAE567B9} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{9D5A69FF-EF90-40C9-91C8-D6D08FD1336B} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{6CA787EC-99C6-40A7-8043-F8E570E75D2F} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

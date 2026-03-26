@@ -1,0 +1,53 @@
+@using AgentHabitat.Web.Services
+@inject WorldService WorldSvc
+@inject IJSRuntime JS
+
+<div class="world-viewer">
+    <div class="controls">
+        <label>Seed:</label>
+        <input @bind="Seed" @bind:event="oninput" placeholder="alpha-001" />
+
+        <label>Style:</label>
+        <select @bind="Style">
+            <option value="retro-office">Retro Office</option>
+            <option value="forest-lab">Forest Lab</option>
+            <option value="neon-hq">Neon HQ</option>
+        </select>
+
+        <button @onclick="Generate">Generate</button>
+    </div>
+
+    @if (_renderData != null)
+    {
+        <div class="world-info">
+            <span>Rooms: @_renderData.Rooms.Length</span>
+            <span>Grid: @_renderData.Width×@_renderData.Height</span>
+            <span>Hash: @_renderData.TopologyHash[..12]...</span>
+        </div>
+    }
+
+    <canvas id="world-canvas"></canvas>
+</div>
+
+@code {
+    private string Seed { get; set; } = "alpha-001";
+    private string Style { get; set; } = "retro-office";
+    private WorldRenderData? _renderData;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Generate();
+        }
+    }
+
+    private async Task Generate()
+    {
+        var world = WorldSvc.Generate(Seed, Style);
+        _renderData = WorldSvc.ToRenderData(world);
+        StateHasChanged();
+
+        await JS.InvokeVoidAsync("WorldRenderer.render", "world-canvas", _renderData);
+    }
+}
