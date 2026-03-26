@@ -303,6 +303,123 @@ function drawPixelSprite(ctx, name, px, py, style, scale = 2, overrideColor = nu
   }
 }
 
+// --- Heightmap Lighting Engine ---
+const LIGHT = { x: -0.4, y: -0.6, z: 0.7 };
+function computeLight(hm, w, h) {
+  const l = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x;
+    if (!hm[i]) continue;
+    const hL = x > 0 ? hm[i-1] : hm[i], hR = x < w-1 ? hm[i+1] : hm[i];
+    const hU = y > 0 ? hm[i-w] : hm[i], hD = y < h-1 ? hm[i+w] : hm[i];
+    const nx = (hL-hR)*0.5, ny = (hU-hD)*0.5, nz = 1;
+    const len = Math.sqrt(nx*nx+ny*ny+nz*nz);
+    l[i] = Math.max(0.3, Math.min(1.4, 0.4 + (nx/len*LIGHT.x + ny/len*LIGHT.y + nz/len*LIGHT.z)));
+  }
+  return l;
+}
+function hex2rgb(h) { return { r: parseInt(h.slice(1,3),16), g: parseInt(h.slice(3,5),16), b: parseInt(h.slice(5,7),16) }; }
+function rgb2hex(r,g,b) { return '#'+[r,g,b].map(c=>Math.max(0,Math.min(255,Math.round(c))).toString(16).padStart(2,'0')).join(''); }
+
+function renderLitSprite(ctx, spr, px, py) {
+  const light = computeLight(spr.hm, spr.w, spr.h);
+  for (let y = 0; y < spr.h; y++) for (let x = 0; x < spr.w; x++) {
+    const i = y * spr.w + x;
+    if (!spr.c[i]) continue;
+    const rgb = hex2rgb(spr.c[i]);
+    const b = light[i];
+    ctx.fillStyle = rgb2hex(rgb.r*b, rgb.g*b, rgb.b*b);
+    ctx.fillRect(px + x, py + y, 1, 1);
+  }
+}
+
+function hmDesk(pal) {
+  const w=32,h=32,c=new Array(w*h).fill(null),hm=new Float32Array(w*h);
+  const wood = pal.wood||'#8b6914', wl = pal.woodLight||'#b8960b', wd = pal.woodDark||'#6b4e1e';
+  const met = pal.metal||'#a0a0a0', scr = pal.screen||'#1a4a6a';
+  for(let y=4;y<15;y++) for(let x=4;x<28;x++) { c[y*w+x]=wood; hm[y*w+x]=4+(y===4?1:0); }
+  for(let x=5;x<27;x++) { c[5*w+x]=wl; hm[5*w+x]=5; }
+  for(let y=15;y<22;y++) for(const lx of[5,6,25,26]) { c[y*w+lx]=wd; hm[y*w+lx]=2; }
+  for(let y=1;y<4;y++) for(let x=12;x<20;x++) { c[y*w+x]=met; hm[y*w+x]=6; }
+  for(let y=1;y<3;y++) for(let x=13;x<19;x++) { c[y*w+x]=scr; hm[y*w+x]=6.5; }
+  c[4*w+15]=met; c[4*w+16]=met; hm[4*w+15]=5; hm[4*w+16]=5;
+  return {w,h,c,hm};
+}
+function hmChair(pal) {
+  const w=32,h=32,c=new Array(w*h).fill(null),hm=new Float32Array(w*h);
+  const fab = pal.fabric||'#4a3a6a', met = pal.metal||'#a0a0a0';
+  for(let y=10;y<17;y++) for(let x=10;x<23;x++) { c[y*w+x]=fab; hm[y*w+x]=3; }
+  for(let y=4;y<10;y++) for(let x=12;x<21;x++) { c[y*w+x]=fab; hm[y*w+x]=5+(10-y)*0.3; }
+  for(let y=17;y<22;y++) for(const lx of[11,21]) { c[y*w+lx]=met; hm[y*w+lx]=1; }
+  return {w,h,c,hm};
+}
+function hmPlant(pal) {
+  const w=32,h=32,c=new Array(w*h).fill(null),hm=new Float32Array(w*h);
+  const pot=pal.pot||'#8b5e3c', rim=pal.potRim||'#a07050', stem=pal.stem||'#3a5a2a';
+  const leaf=pal.leaf||'#4a8a4a', ld=pal.leafDark||'#2d6a2d';
+  for(let y=20;y<27;y++){const ins=Math.floor((y-20)*0.3);for(let x=12+ins;x<20-ins;x++){c[y*w+x]=pot;hm[y*w+x]=3-ins*0.5;}}
+  for(let x=11;x<21;x++){c[20*w+x]=rim;hm[20*w+x]=4;}
+  for(let y=14;y<20;y++){c[y*w+15]=stem;c[y*w+16]=stem;hm[y*w+15]=2;hm[y*w+16]=2;}
+  for(const[cx,cy]of[[14,10],[18,8],[12,7],[16,5],[20,9],[15,3]]) for(let dy=-2;dy<=2;dy++) for(let dx=-2;dx<=2;dx++){
+    if(dx*dx+dy*dy>5)continue;const px=cx+dx,py=cy+dy;if(px<0||py<0||px>=w||py>=h)continue;
+    const d=Math.sqrt(dx*dx+dy*dy);c[py*w+px]=d<1.5?ld:leaf;hm[py*w+px]=Math.max(hm[py*w+px],6-d);
+  }
+  return {w,h,c,hm};
+}
+function hmBookshelf(pal) {
+  const w=32,h=32,c=new Array(w*h).fill(null),hm=new Float32Array(w*h);
+  const wood=pal.wood||'#8b6914',wl=pal.woodLight||'#b8960b';
+  const bc=['#cc4444','#44aa44','#4444cc','#ccaa44','#aa44aa','#44aaaa'];
+  for(let y=1;y<19;y++) for(let x=3;x<25;x++){c[y*w+x]=wood;hm[y*w+x]=2;}
+  for(const sy of[1,5,9,13,17]) for(let x=3;x<25;x++){c[sy*w+x]=wl;hm[sy*w+x]=3;}
+  for(const sy of[2,6,10,14]) for(let x=4;x<24;x++){
+    const ci=(x*7+sy*13)%bc.length;
+    for(let by=sy;by<sy+3;by++){c[by*w+x]=bc[ci];hm[by*w+x]=4+((x+sy)%3)*0.5;}
+  }
+  return {w,h,c,hm};
+}
+function hmWhiteboard(pal) {
+  const w=32,h=32,c=new Array(w*h).fill(null),hm=new Float32Array(w*h);
+  const met=pal.metal||'#a0a0a0';
+  for(let y=2;y<14;y++) for(let x=4;x<28;x++){c[y*w+x]='#e0e0e0';hm[y*w+x]=5;}
+  for(let y=1;y<15;y++){c[y*w+3]=met;c[y*w+28]=met;hm[y*w+3]=6;hm[y*w+28]=6;}
+  for(let x=3;x<29;x++){c[1*w+x]=met;c[14*w+x]=met;hm[1*w+x]=6;hm[14*w+x]=6;}
+  for(let x=8;x<16;x++){c[5*w+x]='#333';hm[5*w+x]=5.2;}
+  for(let x=10;x<22;x++){c[8*w+x]='#e76f51';hm[8*w+x]=5.2;}
+  for(let x=6;x<14;x++){c[11*w+x]='#3a7aba';hm[11*w+x]=5.2;}
+  for(let y=15;y<20;y++){c[y*w+14]=met;c[y*w+17]=met;hm[y*w+14]=2;hm[y*w+17]=2;}
+  for(let x=10;x<22;x++){c[20*w+x]=met;hm[20*w+x]=1;}
+  return {w,h,c,hm};
+}
+function hmCouch(pal) {
+  const w=32,h=32,c=new Array(w*h).fill(null),hm=new Float32Array(w*h);
+  const fab=pal.fabric||'#4a3a6a',met=pal.metal||'#707070';
+  for(let y=4;y<16;y++) for(let x=4;x<26;x++){c[y*w+x]=fab;hm[y*w+x]=3+(y<6?1:0);}
+  // Armrests
+  for(let y=4;y<12;y++){c[y*w+3]=fab;c[y*w+26]=fab;hm[y*w+3]=5;hm[y*w+26]=5;}
+  // Cushion division
+  for(let y=8;y<15;y++){c[y*w+15]=fab;hm[y*w+15]=2;}
+  // Legs
+  for(const lx of[5,24]){c[16*w+lx]=met;c[17*w+lx]=met;hm[16*w+lx]=1;hm[17*w+lx]=1;}
+  return {w,h,c,hm};
+}
+
+const HM_MATERIAL_PALS = {
+  'retro-office': { wood:'#8b6914',woodLight:'#b8960b',woodDark:'#6b4e1e',metal:'#a0a0a0',screen:'#1a4a6a',fabric:'#5a4a7a',pot:'#8b5e3c',potRim:'#a07050',stem:'#3a5a2a',leaf:'#4a8a4a',leafDark:'#2d6a2d' },
+  'forest-lab': { wood:'#5a4a28',woodLight:'#7a6a38',woodDark:'#3a2a14',metal:'#808080',screen:'#1a3a2a',fabric:'#3a5a3a',pot:'#7a4a2a',potRim:'#906040',stem:'#2a4a1a',leaf:'#5a9a5a',leafDark:'#3a7a3a' },
+  'neon-hq': { wood:'#3a2a3a',woodLight:'#5a3a5a',woodDark:'#2a1a2a',metal:'#6060a0',screen:'#0a2a4a',fabric:'#5a3a6a',pot:'#5a3a4a',potRim:'#7a5060',stem:'#2a3a2a',leaf:'#3a6a5a',leafDark:'#2a5a4a' },
+};
+
+const HM_FACTORIES = {
+  desk: hmDesk, monitor: hmDesk, table: hmDesk,
+  chair: hmChair,
+  plant: hmPlant, lamp: hmPlant,
+  bookshelf: hmBookshelf,
+  whiteboard: hmWhiteboard,
+  couch: hmCouch,
+  'coffee-table': hmCouch,
+};
+
 // --- 32x32 Sprite Palettes (shaded) ---
 const SPRITE_PALS_32 = {
   'retro-office': ['#0d1117','#161b22','#21262d','#30363d','#1a2332','#243447','#2d4157','#6b4e1e','#8b6914','#b8860b','#707070','#a0a0a0','#d0d0d0','#e76f51','#8ecae6','#f0e6d2'],
@@ -479,30 +596,14 @@ function render(canvas, world) {
     }
   }
 
-  // Objects as pixel sprites (native 32x32)
+  // Objects as heightmap-lit sprites
+  const matPal = HM_MATERIAL_PALS[world.opts.style] || HM_MATERIAL_PALS['retro-office'];
   for (const obj of world.objects) {
     const ox = obj.x * tileSize;
     const oy = obj.y * tileSize + oY;
-    const sprName = obj.type === 'table' ? 'desk' : obj.type;
-    // Try native 32x32 sprite first, fall back to 16x16 scaled
-    if (typeof SPRITES_32_DATA !== 'undefined' && SPRITES_32_DATA[sprName]) {
-      const spr = SPRITES_32_DATA[sprName];
-      const spPal = SPRITE_PALS_32[world.opts.style] || SPRITE_PALS_32['retro-office'];
-      for (let row = 0; row < spr.length; row++) {
-        for (let col = 0; col < spr[row].length; col++) {
-          const ch = spr[row][col];
-          if (ch === '.') continue;
-          ctx.fillStyle = spPal[parseInt(ch, 16)];
-          ctx.fillRect(ox + col, oy + row, 1, 1);
-        }
-      }
-    } else if (PIXEL_SPRITES[sprName]) {
-      ctx.globalAlpha = 0.4;
-      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-        drawPixelSprite(ctx, sprName, ox + dx, oy + dy, world.opts.style, 2, '#111');
-      }
-      ctx.globalAlpha = 1.0;
-      drawPixelSprite(ctx, sprName, ox, oy, world.opts.style, 2);
+    const factory = HM_FACTORIES[obj.type];
+    if (factory) {
+      renderLitSprite(ctx, factory(matPal), ox, oy);
     } else {
       ctx.fillStyle = pal.obj;
       ctx.fillRect(ox + 6, oy + 6, 20, 20);
