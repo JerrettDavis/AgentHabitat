@@ -145,6 +145,14 @@ public sealed class DeterministicWorldGenerator : IWorldGenerator
         var doors = new List<DoorPlacement>();
         var doorId = 1;
 
+        // Track doors per connection pair to enforce cap (max 2 between any two spaces)
+        // Key: sorted pair like "room-1|corridor" or "room-1|room-2"
+        var pairCounts = new Dictionary<string, int>();
+        string PairKey(string a, string? b) {
+            var s = b ?? "corridor";
+            return string.Compare(a, s, StringComparison.Ordinal) <= 0 ? $"{a}|{s}" : $"{s}|{a}";
+        }
+
         foreach (var room in rooms)
         {
             var candidates = FindDoorCandidates(room, rooms, walkable, options);
@@ -152,21 +160,111 @@ public sealed class DeterministicWorldGenerator : IWorldGenerator
             if (candidates.Count == 0)
                 throw new InvalidOperationException($"Room {room.Id} has no valid door candidates.");
 
-            // Always place at least 1 door. For larger rooms, place more.
-            var area = room.Width * room.Height;
-            var maxDoors = area > 60 ? 3 : area > 35 ? 2 : 1;
-            var doorCount = Math.Min(maxDoors, candidates.Count);
+            // Score and sort candidates for quality placement
+            var scored = candidates.Select(c =>
+            {
+                var (x, y, dir, connectsTo) = c;
+                var score = 0;
 
-            // Shuffle candidates deterministically, then pick the first doorCount
-            for (var i = candidates.Count - 1; i > 0; i--)
+                // Prefer corridor connections (primary access) over room-to-room
+                if (connectsTo == "corridor") score += 10;
+
+                // Prefer wall centers over corners
+                var distFromCorner = dir switch
+                {
+                    DoorDirection.North or DoorDirection.South =>
+                        Math.Min(x - room.X, room.X + room.Width - 1 - x),
+                    _ => Math.Min(y - room.Y, room.Y + room.Height - 1 - y)
+                };
+                score += Math.Min(distFromCorner, 3); // up to +3 for being away from corners
+
+                return (Candidate: c, Score: score);
+            })
+            .OrderByDescending(s => s.Score)
+            .Select(s => s.Candidate)
+            .ToList();
+
+            // Deterministic shuffle within same-score tiers
+            for (var i = scored.Count - 1; i > 0; i--)
             {
                 var j = rng.Next(0, i + 1);
-                (candidates[i], candidates[j]) = (candidates[j], candidates[i]);
+                (scored[i], scored[j]) = (scored[j], scored[i]);
             }
 
-            for (var i = 0; i < doorCount; i++)
+            // Re-sort by score after shuffle (stable relative to shuffle within tiers)
+            scored = scored
+                .Select(c => {
+                    var (x, y, dir, connectsTo) = c;
+                    var score = (connectsTo == "corridor" ? 10 : 0) +
+                        Math.Min(dir is DoorDirection.North or DoorDirection.South
+                            ? Math.Min(x - room.X, room.X + room.Width - 1 - x)
+                            : Math.Min(y - room.Y, room.Y + room.Height - 1 - y), 3);
+                    return (C: c, S: score);
+                })
+                .OrderByDescending(s => s.S)
+                .Select(s => s.C)
+                .ToList();
+
+            // Determine door count: 1 base, maybe 2 for larger rooms
+            var area = room.Width * room.Height;
+            var maxDoors = area > 50 ? 2 : 1;
+
+            var placed = new List<(int X, int Y, DoorDirection Dir, string? ConnectsTo)>();
+
+            foreach (var (x, y, dir, connectsTo) in scored)
             {
-                var (x, y, dir, connectsTo) = candidates[i];
+                if (placed.Count >= maxDoors) break;
+
+                // Pair cap: max 2 doors between same two spaces
+                var pk = PairKey(room.Id, connectsTo);
+                var currentPairCount = pairCounts.GetValueOrDefault(pk, 0);
+                if (currentPairCount >= 2) continue;
+
+                // Min spacing: doors on same wall must be 3+ tiles apart
+                // (unless this would be the first door — always allow)
+                if (placed.Count > 0)
+                {
+                    var tooClose = placed.Any(p =>
+                    {
+                        if (p.Dir != dir) return false; // different walls, OK
+                        var dist = Math.Abs(p.X - x) + Math.Abs(p.Y - y);
+                        return dist > 0 && dist < 3; // adjacent (1) or too close (2) — skip
+                    });
+                    if (tooClose) continue;
+
+                    // Prefer opposite walls for 2nd door (diversity)
+                    var oppositeExists = placed.Any(p =>
+                        (p.Dir == DoorDirection.North && dir == DoorDirection.South) ||
+                        (p.Dir == DoorDirection.South && dir == DoorDirection.North) ||
+                        (p.Dir == DoorDirection.East && dir == DoorDirection.West) ||
+                        (p.Dir == DoorDirection.West && dir == DoorDirection.East));
+                    var sameWall = placed.Any(p => p.Dir == dir);
+
+                    // If we already have a door on same wall, strongly prefer opposite wall
+                    if (sameWall && !oppositeExists)
+                    {
+                        // 80% chance to skip same-wall placement if opposite is available
+                        var hasOppCandidate = scored.Any(s =>
+                            s.Item3 != dir && !placed.Any(p => p.Dir == s.Item3));
+                        if (hasOppCandidate && rng.Next(0, 5) < 4) continue;
+                    }
+                }
+
+                placed.Add((x, y, dir, connectsTo));
+                pairCounts[pk] = currentPairCount + 1;
+            }
+
+            // Safety: ensure at least 1 door (should always succeed given candidates exist)
+            if (placed.Count == 0)
+            {
+                var fallback = scored[0];
+                placed.Add(fallback);
+                var fpk = PairKey(room.Id, fallback.Item4);
+                pairCounts[fpk] = pairCounts.GetValueOrDefault(fpk, 0) + 1;
+            }
+
+            foreach (var (x, y, dir, connectsTo) in placed)
+            {
                 doors.Add(new DoorPlacement(
                     $"door-{doorId++}",
                     x, y,

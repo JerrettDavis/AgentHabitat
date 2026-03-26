@@ -268,6 +268,49 @@ public class WorldGenerationTests
     }
 
     [Fact]
+    public void GeneratedWorld_MaxTwoDoorsPerConnectionPair()
+    {
+        for (var i = 0; i < 50; i++)
+        {
+            var seed = $"pair-cap-{i:000}";
+            var world = _gen.GenerateWorld(seed, _defaultOpts);
+
+            // Count doors per connection pair (from both sides)
+            var pairCounts = new Dictionary<string, int>();
+            foreach (var door in world.Doors)
+            {
+                var a = door.RoomId;
+                var b = door.ConnectsTo ?? "corridor";
+                var key = string.Compare(a, b, StringComparison.Ordinal) <= 0 ? $"{a}|{b}" : $"{b}|{a}";
+                pairCounts[key] = pairCounts.GetValueOrDefault(key, 0) + 1;
+            }
+
+            foreach (var (pair, count) in pairCounts)
+            {
+                Assert.True(count <= 2, $"Seed {seed}: pair {pair} has {count} doors (max 2)");
+            }
+        }
+    }
+
+    [Fact]
+    public void GeneratedWorld_DoorDistributionIsReasonable()
+    {
+        // Over 50 seeds, average doors per room should be 1-2
+        var totalDoors = 0;
+        var totalRooms = 0;
+        for (var i = 0; i < 50; i++)
+        {
+            var world = _gen.GenerateWorld($"dist-{i:000}", _defaultOpts);
+            totalDoors += world.Doors.Count;
+            totalRooms += world.Rooms.Count;
+        }
+
+        var avg = (double)totalDoors / totalRooms;
+        Assert.True(avg >= 1.0, $"Average doors/room too low: {avg:F2}");
+        Assert.True(avg <= 2.5, $"Average doors/room too high: {avg:F2}");
+    }
+
+    [Fact]
     public void SeedPack_WritesHashSamplesArtifact_ForAlphaAndExtendedSeeds()
     {
         var seeds = new[] { "alpha-001", "alpha-002", "alpha-003", "beta-001", "gamma-001" };
