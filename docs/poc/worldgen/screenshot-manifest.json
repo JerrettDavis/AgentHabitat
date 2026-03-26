@@ -1,0 +1,70 @@
+{
+  "generated": "2026-03-26T05:58:00Z",
+  "generator": "tools/capture-worldgen.mjs",
+  "renderer": "tools/worldgen-renderer.html",
+  "tileSize": 14,
+  "gridSize": "64x48",
+  "totalScreenshots": 10,
+  "files": [
+    {
+      "file": "worldgen-alpha-001-retro-office.png",
+      "seed": "alpha-001",
+      "style": "retro-office",
+      "sha256": "bca111ba3e7f84204f31f07557fcbccff7b16020b803bdf5f567113d5c61f169"
+    },
+    {
+      "file": "worldgen-alpha-001-forest-lab.png",
+      "seed": "alpha-001",
+      "style": "forest-lab",
+      "sha256": "c2dd76c3b36a8d15af19d16d72dfa87a742efd7c08e3853389630b7ac716c8c0"
+    },
+    {
+      "file": "worldgen-alpha-001-neon-hq.png",
+      "seed": "alpha-001",
+      "style": "neon-hq",
+      "sha256": "83bf10d9e1be777a2d81dbd5cef679f07d95f5948d78e34897c2f0c16b01aca8"
+    },
+    {
+      "file": "worldgen-alpha-002-retro-office.png",
+      "seed": "alpha-002",
+      "style": "retro-office",
+      "sha256": "008021cd34094c454c9fcf78c3e655e324260f89220ba50587a2c52cb81e1004"
+    },
+    {
+      "file": "worldgen-alpha-002-forest-lab.png",
+      "seed": "alpha-002",
+      "style": "forest-lab",
+      "sha256": "715f1015b66a6c0ebcf611b5980eb9f40d05bdf1b227977db56c458a6d5486a6"
+    },
+    {
+      "file": "worldgen-alpha-002-neon-hq.png",
+      "seed": "alpha-002",
+      "style": "neon-hq",
+      "sha256": "536459991d9fd159f8829fd50553bd93fb41770716e6a6cfb747e4977e1841e9"
+    },
+    {
+      "file": "worldgen-alpha-003-retro-office.png",
+      "seed": "alpha-003",
+      "style": "retro-office",
+      "sha256": "a41bd8c59fd7cb29227a5bf273fece23deab9b3ee0a24cb6343df849f8272f7a"
+    },
+    {
+      "file": "worldgen-alpha-003-forest-lab.png",
+      "seed": "alpha-003",
+      "style": "forest-lab",
+      "sha256": "b1f9b30c0d075f8cbb73abc8910a7653a999f93224e6a008bb1bc3a7dc85e26a"
+    },
+    {
+      "file": "worldgen-alpha-003-neon-hq.png",
+      "seed": "alpha-003",
+      "style": "neon-hq",
+      "sha256": "bae9b87e1c7f5c56c814f3f832250abb752542fbd12d90b78e660d116b92c6f1"
+    },
+    {
+      "file": "worldgen-grid-overview.png",
+      "seed": "multi",
+      "style": "mixed",
+      "sha256": "0a4e76da66182759db3d26be201e71d87fd4a4ba0f358229a767eb71678fd4d1"
+    }
+  ]
+}
