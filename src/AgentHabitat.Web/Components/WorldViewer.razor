@@ -2,76 +2,75 @@
 @inject WorldService WorldSvc
 @inject IJSRuntime JS
 
-<div class="world-viewer">
-    <div class="controls" style="display:flex;gap:12px;align-items:center;padding:12px;background:#1a1a2e;border-radius:8px;margin-bottom:12px;flex-wrap:wrap">
-        <label style="color:#888;font-size:13px">Seed:</label>
-        <input @bind="Seed" @bind:event="oninput" placeholder="alpha-001"
-               style="background:#0d1117;border:1px solid #333;color:#e0e0e0;padding:6px 10px;border-radius:6px;font-size:13px" />
+<div class="habitat-shell">
+    <div class="habitat-header">
+        <h1>AgentHabitat</h1>
+        <span class="subtitle">Deterministic 2D world generation for AI agent collaboration</span>
+    </div>
 
-        <label style="color:#888;font-size:13px">Style:</label>
-        <select @bind="Style"
-                style="background:#0d1117;border:1px solid #333;color:#e0e0e0;padding:6px 10px;border-radius:6px;font-size:13px">
+    <div class="habitat-controls">
+        <label>Seed</label>
+        <input @bind="Seed" @bind:event="oninput" placeholder="alpha-001" />
+
+        <label>Style</label>
+        <select @bind="Style">
             <option value="retro-office">Retro Office</option>
             <option value="forest-lab">Forest Lab</option>
             <option value="neon-hq">Neon HQ</option>
         </select>
 
-        <button @onclick="Generate"
-                style="background:#3b82f6;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600">
-            Generate
-        </button>
-        <button @onclick="ToggleMinimap"
-                style="background:#222;color:@(_showMinimap ? "#22c55e" : "#666");border:1px solid #333;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:11px">
+        <button class="habitat-btn-primary" @onclick="Generate">Generate</button>
+        <button class="habitat-btn-secondary" @onclick="ToggleMinimap">
             Minimap @(_showMinimap ? "ON" : "OFF")
         </button>
     </div>
 
     @if (_renderData != null)
     {
-        <div style="display:flex;gap:16px;margin-bottom:12px;font-size:12px;color:#888">
-            <span>Rooms: <strong style="color:#e0e0e0">@_renderData.Rooms.Length</strong></span>
-            <span>Agents: <strong style="color:#e0e0e0">@_renderData.Agents.Length</strong></span>
-            <span>Objects: <strong style="color:#e0e0e0">@_renderData.Objects.Length</strong></span>
-            <span>Grid: <strong style="color:#e0e0e0">@(_renderData.Width)×@(_renderData.Height)</strong></span>
-            <span>Hash: <strong style="color:#e0e0e0">@_renderData.TopologyHash[..12]...</strong></span>
+        <div class="habitat-stats">
+            <span>Rooms <strong>@_renderData.Rooms.Length</strong></span>
+            <span>Agents <strong>@_renderData.Agents.Length</strong></span>
+            <span>Objects <strong>@_renderData.Objects.Length</strong></span>
+            <span>Grid <strong>@(_renderData.Width)×@(_renderData.Height)</strong></span>
+            <span>Hash <strong style="font:var(--text-mono)">@_renderData.TopologyHash[..12]</strong></span>
         </div>
 
-        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <div class="habitat-agents">
             @foreach (var agent in _renderData.Agents)
             {
-                <div style="display:flex;align-items:center;gap:6px;background:#0d1117;padding:6px 12px;border-radius:6px;border:1px solid #222">
-                    <div style="width:8px;height:8px;border-radius:50%;background:@agent.Color"></div>
-                    <span style="color:@agent.Color;font-size:12px;font-weight:600">@agent.Name</span>
-                    <span style="color:#666;font-size:11px">@agent.Role</span>
-                    <div style="width:6px;height:6px;border-radius:50%;background:@(agent.Status == "active" ? "#22c55e" : agent.Status == "idle" ? "#eab308" : "#666")"></div>
+                <div class="habitat-agent-card">
+                    <div class="dot" style="background:@agent.Color"></div>
+                    <span class="name" style="color:@agent.Color">@agent.Name</span>
+                    <span class="role">@agent.Role</span>
+                    <div class="status-dot" style="background:@(agent.Status == "active" ? "var(--accent-green)" : agent.Status == "idle" ? "#eab308" : "var(--text-dim)")"></div>
                 </div>
             }
         </div>
     }
 
-    <div style="display:flex;gap:16px;flex-wrap:wrap">
-        <div style="overflow:auto;max-width:100%">
-            <canvas id="world-canvas" style="border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.5)"></canvas>
+    <div class="habitat-main">
+        <div class="habitat-canvas-wrap">
+            <canvas id="world-canvas"></canvas>
         </div>
 
         @if (_selectedRoom != null)
         {
-            <div style="width:260px;background:#0d1117;border:1px solid #222;border-radius:8px;padding:16px;font-size:13px">
-                <h3 style="color:#e0e0e0;margin:0 0 8px;font-size:15px">@_selectedRoom.Archetype.Replace("Room", " Room")</h3>
-                <div style="color:#666;font-size:11px;margin-bottom:12px">
-                    @_selectedRoom.Id — @(_selectedRoom.Width)×@(_selectedRoom.Height) tiles at (@_selectedRoom.X, @_selectedRoom.Y)
+            <div class="habitat-panel">
+                <h3>@_selectedRoom.Archetype.Replace("Room", " Room")</h3>
+                <div class="meta">
+                    @_selectedRoom.Id — @(_selectedRoom.Width)×@(_selectedRoom.Height) at (@_selectedRoom.X, @_selectedRoom.Y)
                 </div>
 
                 @if (_selectedRoomAgents.Length > 0)
                 {
-                    <div style="margin-bottom:12px">
-                        <div style="color:#888;font-size:11px;font-weight:600;margin-bottom:4px">AGENTS</div>
+                    <div style="margin-bottom:var(--sp-3)">
+                        <div class="section-label">Agents</div>
                         @foreach (var agent in _selectedRoomAgents)
                         {
-                            <div style="display:flex;align-items:center;gap:6px;padding:4px 0">
-                                <div style="width:6px;height:6px;border-radius:50%;background:@agent.Color"></div>
-                                <span style="color:@agent.Color;font-weight:600">@agent.Name</span>
-                                <span style="color:#555">@agent.Role</span>
+                            <div style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-1) 0">
+                                <div class="dot" style="width:6px;height:6px;border-radius:50%;background:@agent.Color"></div>
+                                <span style="color:@agent.Color;font-weight:600;font:var(--text-caption)">@agent.Name</span>
+                                <span style="color:var(--text-dim);font:var(--text-caption)">@agent.Role</span>
                             </div>
                         }
                     </div>
@@ -80,20 +79,17 @@
                 @if (_selectedRoomObjects.Length > 0)
                 {
                     <div>
-                        <div style="color:#888;font-size:11px;font-weight:600;margin-bottom:4px">FURNITURE</div>
-                        <div style="display:flex;gap:4px;flex-wrap:wrap">
+                        <div class="section-label">Furniture</div>
+                        <div style="display:flex;gap:var(--sp-1);flex-wrap:wrap">
                             @foreach (var obj in _selectedRoomObjects.GroupBy(o => o.Type))
                             {
-                                <span style="background:#1a1a2e;color:#aaa;padding:2px 8px;border-radius:4px;font-size:11px">
-                                    @obj.Key ×@obj.Count()
-                                </span>
+                                <span class="habitat-tag">@obj.Key ×@obj.Count()</span>
                             }
                         </div>
                     </div>
                 }
 
-                <button @onclick="ClearSelection"
-                        style="margin-top:12px;background:#222;color:#888;border:1px solid #333;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:11px;width:100%">
+                <button class="habitat-btn-secondary" style="width:100%;margin-top:var(--sp-3)" @onclick="ClearSelection">
                     Close
                 </button>
             </div>
@@ -102,25 +98,23 @@
 
     @if (_selectedAgent != null)
     {
-        <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#0d1117;border:2px solid @_selectedAgent.Color;border-radius:12px;padding:20px;min-width:280px;z-index:100;box-shadow:0 8px 32px rgba(0,0,0,0.6)">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div class="habitat-modal" style="border:2px solid @_selectedAgent.Color">
+            <div class="modal-header">
                 <div style="width:16px;height:16px;border-radius:50%;background:@_selectedAgent.Color"></div>
-                <h3 style="color:#e0e0e0;margin:0;font-size:16px">@_selectedAgent.Name</h3>
-                <div style="width:8px;height:8px;border-radius:50%;background:@(_selectedAgent.Status == "active" ? "#22c55e" : _selectedAgent.Status == "idle" ? "#eab308" : "#666")"></div>
+                <h3 style="margin:0;font:var(--text-heading)">@_selectedAgent.Name</h3>
+                <div style="width:8px;height:8px;border-radius:50%;background:@(_selectedAgent.Status == "active" ? "var(--accent-green)" : _selectedAgent.Status == "idle" ? "#eab308" : "var(--text-dim)")"></div>
             </div>
-            <div style="display:grid;grid-template-columns:80px 1fr;gap:6px;font-size:12px;color:#888">
-                <span>Role:</span><span style="color:#e0e0e0">@_selectedAgent.Role</span>
-                <span>Status:</span><span style="color:#e0e0e0">@_selectedAgent.Status</span>
-                <span>Position:</span><span style="color:#e0e0e0">(@_selectedAgent.X, @_selectedAgent.Y)</span>
-                <span>ID:</span><span style="color:#e0e0e0;font-family:monospace">@_selectedAgent.Id</span>
+            <div class="modal-grid">
+                <span>Role</span><span class="value">@_selectedAgent.Role</span>
+                <span>Status</span><span class="value">@_selectedAgent.Status</span>
+                <span>Position</span><span class="value">(@_selectedAgent.X, @_selectedAgent.Y)</span>
+                <span>ID</span><span class="value" style="font:var(--text-mono)">@_selectedAgent.Id</span>
             </div>
-            <div style="display:flex;gap:8px;margin-top:16px">
-                <button @onclick="() => MoveSelectedAgent()"
-                        style="flex:1;background:@_selectedAgent.Color;color:white;border:none;padding:6px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">
+            <div class="modal-actions">
+                <button class="habitat-btn-primary" style="flex:1" @onclick="() => MoveSelectedAgent()">
                     Move Agent
                 </button>
-                <button @onclick="ClearSelection"
-                        style="flex:1;background:#222;color:#888;border:1px solid #333;padding:6px;border-radius:6px;cursor:pointer;font-size:11px">
+                <button class="habitat-btn-secondary" style="flex:1" @onclick="ClearSelection">
                     Close
                 </button>
             </div>
@@ -129,7 +123,7 @@
 
     @if (_selectedRoom == null && _selectedAgent == null)
     {
-        <div style="color:#555;font-size:11px;margin-top:8px">Click a room or agent to inspect</div>
+        <div class="habitat-hint">Click a room or agent to inspect · Right-click to move selected agent</div>
     }
 </div>
 
@@ -149,17 +143,8 @@
         if (firstRender)
         {
             _selfRef = DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("eval",
-                $"WorldRenderer.onRoomClick((room) => {{ if(room) DotNet.invokeMethodAsync('AgentHabitat.Web', 'OnRoomClicked', JSON.stringify(room)); }})");
             await Generate();
         }
-    }
-
-    [JSInvokable("OnRoomClicked")]
-    public static Task OnRoomClickedStatic(string roomJson)
-    {
-        // Static callback — in a real app we'd use a service/event bus
-        return Task.CompletedTask;
     }
 
     private async Task Generate()
@@ -167,34 +152,17 @@
         var world = WorldSvc.Generate(Seed, Style);
         _renderData = WorldSvc.ToRenderData(world);
         _selectedRoom = null;
+        _selectedAgent = null;
         StateHasChanged();
-
         await JS.InvokeVoidAsync("WorldRenderer.render", "world-canvas", _renderData);
-
-        // Register click callback that updates Blazor state
-        await JS.InvokeVoidAsync("eval", @"
-            WorldRenderer.onRoomClick((room) => {
-                const panel = document.getElementById('room-detail-data');
-                if (panel) panel.setAttribute('data-room', JSON.stringify(room));
-                // For now, visual feedback is handled in JS
-            });
-        ");
     }
 
-    private void SelectRoom(RoomRenderData room)
+    private async Task ToggleMinimap()
     {
-        _selectedRoom = room;
+        _showMinimap = !_showMinimap;
+        await JS.InvokeVoidAsync("eval", $"document.getElementById('world-canvas')._showMinimap = {(_showMinimap ? "true" : "false")}");
         if (_renderData != null)
-        {
-            _selectedRoomAgents = _renderData.Agents
-                .Where(a => a.X >= room.X && a.X < room.X + room.Width &&
-                            a.Y >= room.Y && a.Y < room.Y + room.Height)
-                .ToArray();
-            _selectedRoomObjects = _renderData.Objects
-                .Where(o => o.RoomId == room.Id)
-                .ToArray();
-        }
-        StateHasChanged();
+            await JS.InvokeVoidAsync("WorldRenderer.render", "world-canvas", _renderData);
     }
 
     private void ClearSelection()
@@ -206,18 +174,9 @@
         StateHasChanged();
     }
 
-    private async Task ToggleMinimap()
-    {
-        _showMinimap = !_showMinimap;
-        await JS.InvokeVoidAsync("eval", $"document.getElementById('world-canvas')._showMinimap = {(_showMinimap ? "true" : "false")}");
-        if (_renderData != null)
-            await JS.InvokeVoidAsync("WorldRenderer.render", "world-canvas", _renderData);
-    }
-
     private async Task MoveSelectedAgent()
     {
         if (_selectedAgent == null || _renderData == null) return;
-        // Move agent to a random walkable room center
         var rng = new Random();
         var targetRoom = _renderData.Rooms[rng.Next(_renderData.Rooms.Length)];
         await JS.InvokeVoidAsync("WorldRenderer.moveAgent", "world-canvas",
