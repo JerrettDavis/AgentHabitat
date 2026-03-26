@@ -246,14 +246,14 @@ const SPRITE_PALS = {
   'neon-hq': ['#0a0a1a','#1a0a2e','#2a1a4e','#1a1a3e','#3a2a5e','#4a3a6e','#3a1a1a','#5a2a2a','#b0b0b0','#505060','#22d3ee','#f472b6','#c084fc','#1a3a1a','#2a5a3a','#f0f0ff'],
 };
 
-function drawPixelSprite(ctx, name, px, py, style, scale = 2) {
+function drawPixelSprite(ctx, name, px, py, style, scale = 2, overrideColor = null) {
   const sprite = PIXEL_SPRITES[name] || PIXEL_SPRITES['desk'];
   const pal = SPRITE_PALS[style] || SPRITE_PALS['retro-office'];
   for (let row = 0; row < sprite.length; row++) {
     for (let col = 0; col < sprite[row].length; col++) {
       const ch = sprite[row][col];
       if (ch === '.') continue;
-      ctx.fillStyle = pal[parseInt(ch, 16)];
+      ctx.fillStyle = overrideColor || pal[parseInt(ch, 16)];
       ctx.fillRect(px + col * scale, py + row * scale, scale, scale);
     }
   }
@@ -317,11 +317,11 @@ function render(canvas, world) {
     ctx.fillStyle = grad;
     ctx.fillRect(rx, ry, rw, rh);
 
-    // Floor texture (subtle checkerboard)
-    ctx.fillStyle = '#ffffff06';
+    // Floor texture (very subtle, reduced noise per QA)
+    ctx.fillStyle = '#ffffff03';
     for (let tx = r.x; tx < r.x + r.w; tx++) {
       for (let ty = r.y; ty < r.y + r.h; ty++) {
-        if ((tx + ty) % 2 === 0) ctx.fillRect(tx*tileSize, ty*tileSize + oY, tileSize, tileSize);
+        if ((tx + ty) % 4 === 0) ctx.fillRect(tx*tileSize + 4, ty*tileSize + oY + 4, tileSize - 8, tileSize - 8);
       }
     }
 
@@ -391,11 +391,19 @@ function render(canvas, world) {
     const oy = obj.y * tileSize + oY;
     const sprName = obj.type === 'table' ? 'desk' : obj.type;
     if (PIXEL_SPRITES[sprName]) {
+      // Draw outline first (1px shifted in 4 directions)
+      ctx.globalAlpha = 0.4;
+      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        drawPixelSprite(ctx, sprName, ox + dx, oy + dy, world.opts.style, 2, '#111');
+      }
+      ctx.globalAlpha = 1.0;
       drawPixelSprite(ctx, sprName, ox, oy, world.opts.style, 2);
     } else {
-      // Fallback: small colored square
-      ctx.fillStyle = pal.obj + '80';
-      ctx.fillRect(ox + 8, oy + 8, 16, 16);
+      ctx.fillStyle = pal.obj;
+      ctx.fillRect(ox + 6, oy + 6, 20, 20);
+      ctx.strokeStyle = '#00000060';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(ox + 6, oy + 6, 20, 20);
     }
   }
 
@@ -409,8 +417,19 @@ function render(canvas, world) {
     // Shadow
     ctx.fillStyle = '#00000030';
     ctx.beginPath();
-    ctx.ellipse(ax + 16, ay + 30, 10, 4, 0, 0, Math.PI * 2);
+    ctx.ellipse(ax + 16, ay + 30, 12, 5, 0, 0, Math.PI * 2);
     ctx.fill();
+
+    // 1px dark outline (draw body offset in 4 dirs)
+    ctx.fillStyle = '#000';
+    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      // Head outline
+      ctx.fillRect(ax + 11 + dx, ay + 2 + dy, 10, 10);
+      // Shirt outline
+      ctx.fillRect(ax + 10 + dx, ay + 12 + dy, 12, 10);
+      ctx.fillRect(ax + 7 + dx, ay + 13 + dy, 4, 8);
+      ctx.fillRect(ax + 21 + dx, ay + 13 + dy, 4, 8);
+    }
 
     // Body (simplified humanoid)
     // Head
