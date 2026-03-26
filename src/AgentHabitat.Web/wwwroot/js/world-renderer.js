@@ -403,10 +403,27 @@ window.WorldRenderer = {
     canvas._tileSize = tileSize;
     canvas._pal = pal;
 
-    // Click handler (only add once)
+    // Click + right-click handlers (only add once)
     if (!canvas._clickHandlerSet) {
       canvas._clickHandlerSet = true;
       canvas.style.cursor = 'pointer';
+
+      // Right-click: move last selected agent to clicked tile
+      canvas.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const wd = canvas._worldData;
+        const ts = canvas._tileSize;
+        if (!wd || !canvas._selectedAgentId) return;
+
+        const tx = Math.floor(mx / ts);
+        const ty = Math.floor(my / ts);
+        if (wd.tiles[ty * wd.width + tx] > 0) {
+          WorldRenderer.moveAgent(canvasId, canvas._selectedAgentId, tx, ty);
+        }
+      });
       canvas.addEventListener('click', (e) => {
         const rect = canvas.getBoundingClientRect();
         const mx = e.clientX - rect.left;
@@ -420,8 +437,9 @@ window.WorldRenderer = {
 
         // Check if an agent was clicked (priority over room)
         const clickedAgent = (wd.agents || []).find(a => a.x === tx && a.y === ty);
-        if (clickedAgent && window._blazorAgentClickCallback) {
-          window._blazorAgentClickCallback(clickedAgent);
+        if (clickedAgent) {
+          canvas._selectedAgentId = clickedAgent.id;
+          if (window._blazorAgentClickCallback) window._blazorAgentClickCallback(clickedAgent);
           // Visual: highlight agent with ring
           const ctx2 = canvas.getContext('2d');
           const aax = clickedAgent.x * ts + ts / 2;
@@ -525,18 +543,42 @@ window.WorldRenderer = {
 
     if (!foundPath || foundPath.length === 0) return;
 
-    // Animate along path (one step every 200ms)
+    // Show path preview (fading dots along route)
+    const ts = canvas._tileSize;
+    const previewCtx = canvas.getContext('2d');
+    for (let i = 0; i < foundPath.length; i++) {
+      const alpha = Math.max(0.05, 0.3 - i * 0.01);
+      previewCtx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+      previewCtx.beginPath();
+      previewCtx.arc(foundPath[i].x * ts + ts/2, foundPath[i].y * ts + ts/2, 3, 0, Math.PI * 2);
+      previewCtx.fill();
+    }
+
+    // Animate along path (one step every 150ms, faster pace)
     let step = 0;
+    agent._moving = true;
     const interval = setInterval(() => {
       if (step >= foundPath.length) {
         clearInterval(interval);
+        agent._moving = false;
+        WorldRenderer.render(canvasId, wd);
         return;
       }
-      agent.x = foundPath[step].x;
-      agent.y = foundPath[step].y;
+      const prev = step > 0 ? foundPath[step - 1] : { x: agent.x, y: agent.y };
+      const next = foundPath[step];
+
+      // Trail effect: faint dot at previous position
+      const trailCtx = canvas.getContext('2d');
+      trailCtx.fillStyle = (agent.color || '#fff') + '20';
+      trailCtx.beginPath();
+      trailCtx.arc(agent.x * ts + ts/2, agent.y * ts + ts/2, 4, 0, Math.PI * 2);
+      trailCtx.fill();
+
+      agent.x = next.x;
+      agent.y = next.y;
       step++;
       WorldRenderer.render(canvasId, wd);
-    }, 200);
+    }, 150);
   },
 
   // Start idle animation loop (agents sway slightly)
