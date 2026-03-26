@@ -102,6 +102,26 @@ window.WorldRenderer = {
       }
     }
 
+    // Objects (furniture icons)
+    const objIcons = {
+      desk: '🖥️', monitor: '💻', chair: '🪑', whiteboard: '📋',
+      bookshelf: '📚', lamp: '💡', plant: '🌿', couch: '🛋️',
+    };
+    ctx.font = '18px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const obj of (worldData.objects || [])) {
+      const ox = obj.x * tileSize + tileSize / 2;
+      const oy = obj.y * tileSize + tileSize / 2;
+      const icon = objIcons[obj.type] || '•';
+      // Glow
+      ctx.fillStyle = pal.accent + '15';
+      ctx.beginPath();
+      ctx.arc(ox, oy, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillText(icon, ox, oy);
+    }
+
     // Agents
     for (const agent of (worldData.agents || [])) {
       const ax = agent.x * tileSize + tileSize / 2;

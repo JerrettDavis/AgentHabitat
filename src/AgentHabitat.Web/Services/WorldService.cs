@@ -42,6 +42,29 @@ public class WorldService
             }
         }
 
+        // Generate objects per room archetype
+        var objects = new List<ObjectRenderData>();
+        var objId = 1;
+        foreach (var r in world.Rooms)
+        {
+            var archetype = r.Archetype.ToString();
+            string[] types = archetype switch
+            {
+                "CodingRoom" => ["desk", "monitor", "chair"],
+                "ReviewRoom" => ["whiteboard", "chair", "chair"],
+                "Library" => ["bookshelf", "bookshelf", "lamp"],
+                _ => ["couch", "plant", "lamp"],
+            };
+            // Place 3-4 objects per room
+            var rng = new Random(r.X * 1000 + r.Y); // deterministic per-room
+            foreach (var t in types)
+            {
+                var ox = rng.Next(r.X + 1, r.X + r.Width - 1);
+                var oy = rng.Next(r.Y + 1, r.Y + r.Height - 1);
+                objects.Add(new ObjectRenderData($"obj-{objId++}", t, ox, oy, r.Id));
+            }
+        }
+
         // Generate agents (one per required room)
         var agentDefs = new[]
         {
@@ -65,6 +88,7 @@ public class WorldService
             world.Height,
             tiles,
             rooms,
+            objects.ToArray(),
             agents.ToArray(),
             world.Seed,
             world.Options.StyleProfile,
@@ -78,10 +102,19 @@ public record WorldRenderData(
     int Height,
     int[] Tiles,
     RoomRenderData[] Rooms,
+    ObjectRenderData[] Objects,
     AgentRenderData[] Agents,
     string Seed,
     string Style,
     string TopologyHash
+);
+
+public record ObjectRenderData(
+    string Id,
+    string Type,
+    int X,
+    int Y,
+    string RoomId
 );
 
 public record RoomRenderData(
