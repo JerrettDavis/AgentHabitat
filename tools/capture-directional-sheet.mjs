@@ -51,7 +51,7 @@ function renderSprite(ctx, spr, px, py, scale) {
   }
 }
 
-function buildAgent(color, direction, frame) {
+function buildAgent(color, direction, frame, agentId) {
   const w=32,h=32,c=new Array(w*h).fill(null),hm=new Float32Array(w*h);
   const cD=shade(color,0.55),cM=color,cL=shade(color,1.35);
   const sk='#ffd5a0',skS='#d4a870',skH='#ffe8c8',skB='#f0b888';
@@ -60,39 +60,59 @@ function buildAgent(color, direction, frame) {
   function aE(cx,cy,rx,ry,col,d){for(let dy=-ry;dy<=ry;dy++) for(let dx=-rx;dx<=rx;dx++) if((dx*dx)/(rx*rx)+(dy*dy)/(ry*ry)<=1) ap(cx+dx,cy+dy,col,d);}
   function aR(x1,y1,w,h,col,d){for(let dy=0;dy<h;dy++) for(let dx=0;dx<w;dx++) ap(x1+dx,y1+dy,col,d);}
 
-  // Walk frame offset
-  const walkOff = frame === 1 ? 1 : 0;
-  const legSwing = frame === 1 ? 2 : 0;
+  // Per-agent unique traits
+  const traits = {
+    claude:  { hairRx: 9, hairRy: 6, hairExtra: 'curly', collarType: 'v', bodyW: 5 },
+    copilot: { hairRx: 8, hairRy: 4, hairExtra: 'angular', collarType: 'crew', bodyW: 5 },
+    jdai:    { hairRx: 8, hairRy: 5, hairExtra: 'fringe', collarType: 'tech', bodyW: 4 },
+    ralph:   { hairRx: 10, hairRy: 5, hairExtra: 'volume', collarType: 'suit', bodyW: 6 },
+  };
+  const t = traits[agentId] || traits.claude;
+
+  // Walk: bigger leg separation + shoulder counter-swing
+  const legSwing = frame === 1 ? 3 : 0;
+  const shoulderSwing = frame === 1 ? 1 : 0;
+  // Foot anchor: y=29 is always planted foot baseline
 
   if (direction === 'front') {
-    // Hair
-    aE(16,4,9,5,cM,9); aE(16,3,8,4,cL,10); aE(16,5,9,5,cD,8);
-    aR(10,5,12,2,cM,9.5); aE(9,7,2,4,cD,7); aE(23,7,2,4,cD,7);
-    // Head
-    aE(16,8,6,5,sk,8); aE(16,6,4,2,skH,8.8); aE(16,11,5,2,skS,7.5);
-    aE(12,9,1,1,skB,8.2); aE(20,9,1,1,skB,8.2);
+    // Hair (per-agent unique shape) — head reduced 1px
+    aE(16,4,t.hairRx,t.hairRy,cM,9); aE(16,3,t.hairRx-1,t.hairRy-1,cL,10); aE(16,5,t.hairRx,t.hairRy,cD,8);
+    // Per-agent hair extras
+    if (t.hairExtra === 'curly') { aE(8,6,2,3,cM,8); aE(24,6,2,3,cM,8); ap(9,4,cL,9); ap(23,4,cL,9); } // Claude curls
+    if (t.hairExtra === 'angular') { aR(9,4,4,2,cD,9); aR(19,4,4,2,cD,9); aR(11,3,10,1,cL,10); } // Copilot angular
+    if (t.hairExtra === 'fringe') { aR(10,5,5,2,cL,10); aR(17,5,5,2,cM,9); ap(22,6,cD,8); } // JD.AI sharp fringe
+    if (t.hairExtra === 'volume') { aE(16,3,t.hairRx,t.hairRy+1,cM,9.5); aE(8,5,3,4,cD,7); aE(24,5,3,4,cD,7); } // Ralph broad
+    // Side wisps
+    aE(9,8,2,3,cD,7); aE(23,8,2,3,cD,7);
+    // Head (reduced 1px width)
+    aE(16,9,5,5,sk,8); aE(16,7,4,2,skH,8.8); aE(16,12,4,2,skS,7.5);
+    aE(12,10,1,1,skB,8.2); aE(20,10,1,1,skB,8.2);
     // Eyes
-    aE(13,8,2,2,'#fff',9); aE(19,8,2,2,'#fff',9);
-    aE(13,8,1,2,'#4488cc',9.3); aE(19,8,1,2,'#4488cc',9.3);
-    ap(13,9,'#112',9.8); ap(19,9,'#112',9.8);
-    ap(14,7,'#fff',10); ap(20,7,'#fff',10);
+    aE(13,9,2,2,'#fff',9); aE(19,9,2,2,'#fff',9);
+    aE(13,9,1,2,'#4488cc',9.3); aE(19,9,1,2,'#4488cc',9.3);
+    ap(13,10,'#112',9.8); ap(19,10,'#112',9.8);
+    ap(14,8,'#fff',10); ap(20,8,'#fff',10);
     // Eyebrows
-    ap(12,5,cD,9.5); ap(13,5,cD,9.5); ap(19,5,cD,9.5); ap(20,5,cD,9.5);
+    ap(12,6,cD,9.5); ap(13,6,cD,9.5); ap(19,6,cD,9.5); ap(20,6,cD,9.5);
     // Nose + mouth
-    ap(16,9,skS,8.8); ap(16,10,skH,9);
-    ap(15,11,'#c08060',8.2); ap(16,11,'#d09070',8.3); ap(17,11,'#c08060',8.2);
+    ap(16,10,skS,8.8); ap(16,11,skH,9);
+    ap(15,12,'#c08060',8.2); ap(16,12,'#d09070',8.3); ap(17,12,'#c08060',8.2);
     // Neck
-    aR(14,13,4,1,skS,5.5);
-    // Body
-    aE(16,18,5,5,cM,5); aE(14,18,2,4,cD,4.5); aE(18,18,2,4,cD,4.5); aE(16,17,3,3,cL,5.5);
-    ap(15,14,'#fff',5.9); ap(16,14,'#fff',5.9); ap(17,14,'#fff',5.9);
-    // Arms
-    aE(8,17,2,4,cM,4); aE(8,22,2,1,sk,3);
-    aE(24,17,2,4,cM,4); aE(24,22,2,1,sk,3);
-    // Legs
-    aE(13,24-legSwing,2,3,'#2a2a40',4); aE(19,24+legSwing,2,3,'#2a2a40',4);
-    // Shoes
-    aE(13,28-legSwing,3,1,'#2a1a1a',2); aE(19,28+legSwing,3,1,'#2a1a1a',2);
+    aR(14,14,4,1,skS,5.5);
+    // Body (1px more torso)
+    aE(16,19,t.bodyW,6,cM,5); aE(14,19,2,5,cD,4.5); aE(18,19,2,5,cD,4.5); aE(16,18,3,3,cL,5.5);
+    // Collar (per-agent)
+    if (t.collarType==='v') { ap(15,15,sk,5.8); ap(16,15,'#fff',5.9); ap(17,15,sk,5.8); }
+    if (t.collarType==='crew') { aR(14,15,5,1,'#fff',5.9); }
+    if (t.collarType==='tech') { aR(14,15,5,1,'#333',5.9); ap(16,15,'#0f0',6); } // green LED
+    if (t.collarType==='suit') { ap(14,15,cD,5.8); ap(15,15,'#fff',6); ap(16,15,cD,5.5); ap(17,15,'#fff',6); ap(18,15,cD,5.8); } // suit lapels
+    // Arms (with shoulder counter-swing)
+    aE(8-shoulderSwing,18,2,4,cM,4); aE(8-shoulderSwing,23,2,1,sk,3);
+    aE(24+shoulderSwing,18,2,4,cM,4); aE(24+shoulderSwing,23,2,1,sk,3);
+    // Legs (bigger separation for walk)
+    aE(13,25-legSwing,2,3,'#2a2a40',4); aE(19,25+legSwing,2,3,'#2a2a40',4);
+    // Shoes (anchored at y=29)
+    aE(13,29-legSwing,3,1,'#2a1a1a',2); aE(19,29+legSwing,3,1,'#2a1a1a',2);
   }
   else if (direction === 'back') {
     // Hair (full back, more volume)
