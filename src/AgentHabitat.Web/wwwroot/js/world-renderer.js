@@ -443,6 +443,67 @@ window.WorldRenderer = {
     ctx.textAlign = 'right';
     ctx.fillText('MAP', mmX + mmW, mmY - 5);
 
+    // Persistent selection highlights
+    if (canvas._selectedAgentId) {
+      const selAgent = (worldData.agents || []).find(a => a.id === canvas._selectedAgentId);
+      if (selAgent) {
+        const sax = selAgent.x * tileSize + tileSize / 2;
+        const say = selAgent.y * tileSize + tileSize / 2;
+        ctx.strokeStyle = '#ffffffaa';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath(); ctx.arc(sax, say, 18, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+        // "Selected" label
+        ctx.fillStyle = '#ffffffcc';
+        ctx.font = '8px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('SELECTED', sax, say + 24);
+      }
+    }
+    if (canvas._selectedRoomId) {
+      const selRoom = worldData.rooms.find(r => r.id === canvas._selectedRoomId);
+      if (selRoom) {
+        const srx = selRoom.x * tileSize, sry = selRoom.y * tileSize;
+        const srw = selRoom.width * tileSize, srh = selRoom.height * tileSize;
+        ctx.strokeStyle = '#3b82f6aa';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.strokeRect(srx + 2, sry + 2, srw - 4, srh - 4);
+        ctx.setLineDash([]);
+      }
+    }
+
+    // Movement destination marker
+    if (canvas._moveDestination) {
+      const { x: dx, y: dy } = canvas._moveDestination;
+      const dpx = dx * tileSize + tileSize / 2;
+      const dpy = dy * tileSize + tileSize / 2;
+      // Pulsing dot effect
+      const pulse = 0.5 + Math.sin(Date.now() / 200) * 0.3;
+      ctx.fillStyle = `rgba(34, 197, 94, ${pulse})`;
+      ctx.beginPath(); ctx.arc(dpx, dpy, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#22c55e';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(dpx, dpy, 8, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#22c55e';
+      ctx.font = '7px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('DEST', dpx, dpy + 16);
+    }
+
+    // Moving indicator on agent
+    for (const agent of (worldData.agents || [])) {
+      if (agent._moving) {
+        const max = agent.x * tileSize + tileSize / 2;
+        const may = agent.y * tileSize + tileSize / 2;
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 8px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('Moving...', max, may - 22);
+      }
+    }
+
     // Store world data for click handler
     canvas._worldData = worldData;
     canvas._tileSize = tileSize;
@@ -494,7 +555,8 @@ window.WorldRenderer = {
 
         const tx = Math.floor(mx / ts);
         const ty = Math.floor(my / ts);
-        if (wd.tiles[ty * wd.width + tx] > 0) {
+        const movingAgent = (wd.agents || []).some(a => a._moving);
+        if (!movingAgent && wd.tiles[ty * wd.width + tx] > 0) {
           WorldRenderer.moveAgent(canvasId, canvas._selectedAgentId, tx, ty);
         }
       });
@@ -510,9 +572,14 @@ window.WorldRenderer = {
         const ty = Math.floor(my / ts);
 
         // Check if an agent was clicked (priority over room)
+        // Check if any agent is moving — block clicks during movement
+        const anyMoving = (wd.agents || []).some(a => a._moving);
+        if (anyMoving) return;
+
         const clickedAgent = (wd.agents || []).find(a => a.x === tx && a.y === ty);
         if (clickedAgent) {
           canvas._selectedAgentId = clickedAgent.id;
+          canvas._selectedRoomId = null; // clear room selection
           if (window._blazorAgentClickCallback) window._blazorAgentClickCallback(clickedAgent);
           // Visual: highlight agent with ring
           const ctx2 = canvas.getContext('2d');
@@ -541,6 +608,16 @@ window.WorldRenderer = {
         // Find objects in room
         const roomObjs = room ? (wd.objects || []).filter(o => o.roomId === room.id) : [];
 
+        if (room) {
+          canvas._selectedRoomId = room.id;
+          canvas._selectedAgentId = null; // clear agent selection
+        } else {
+          // Click on empty space → deselect all
+          canvas._selectedRoomId = null;
+          canvas._selectedAgentId = null;
+          canvas._moveDestination = null;
+        }
+
         // Dispatch to Blazor
         if (window._blazorRoomClickCallback) {
           window._blazorRoomClickCallback(room ? {
@@ -552,6 +629,9 @@ window.WorldRenderer = {
             objects: roomObjs.map(o => o.type),
           } : null);
         }
+
+        // Re-render with selection state
+        WorldRenderer.render(canvasId, wd);
 
         // Visual feedback: highlight clicked room
         if (room) {
@@ -617,6 +697,9 @@ window.WorldRenderer = {
 
     if (!foundPath || foundPath.length === 0) return;
 
+    // Set destination marker
+    canvas._moveDestination = { x: targetX, y: targetY };
+
     // Show path preview (fading dots along route)
     const ts = canvas._tileSize;
     const previewCtx = canvas.getContext('2d');
@@ -635,7 +718,15 @@ window.WorldRenderer = {
       if (step >= foundPath.length) {
         clearInterval(interval);
         agent._moving = false;
+        canvas._moveDestination = null;
         WorldRenderer.render(canvasId, wd);
+        // Flash green at destination
+        const dCtx = canvas.getContext('2d');
+        dCtx.fillStyle = '#22c55e40';
+        dCtx.beginPath();
+        dCtx.arc(agent.x * ts + ts/2, agent.y * ts + ts/2, 16, 0, Math.PI * 2);
+        dCtx.fill();
+        setTimeout(() => WorldRenderer.render(canvasId, wd), 500);
         return;
       }
       const prev = step > 0 ? foundPath[step - 1] : { x: agent.x, y: agent.y };
