@@ -39,12 +39,9 @@ public class WorldService
         IReadOnlyList<AgentDefinition>? agents = null)
     {
         var agentList = agents ?? DefaultAgents;
-        // Scale world to fit shared rooms + private offices
-        var baseWidth = 32;
-        var baseHeight = 24;
-        var extraSpace = agentList.Count * 3; // ~3 tiles per office width contribution
-        var width = Math.Min(64, baseWidth + extraSpace);
-        var height = Math.Min(48, baseHeight + extraSpace / 2);
+        // Compute world size based on room + office count
+        var (width, height) = DeterministicWorldGenerator.ComputeRequiredSize(
+            sharedRoomCount: 4, officeCount: agentList.Count);
 
         var options = new WorldGenerationOptions(
             Width: width,
