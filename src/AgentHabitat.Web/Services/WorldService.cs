@@ -15,6 +15,8 @@ public class WorldService
             "Quiet research facility with library, review room, and green spaces"),
         ["cozy-studio"] = new("Cozy Studio", "studio-zen", "neon-hq",
             "Creative studio with reading nooks, art walls, and ambient lighting"),
+        ["corporate-hq"] = new("Corporate HQ", "corp-tower-1", "retro-office",
+            "Formal corporate headquarters with executive suites and structured workspaces"),
         ["custom"] = new("Custom", "alpha-001", "retro-office", "Enter your own seed and style"),
     };
 
@@ -176,6 +178,20 @@ public class WorldService
                     // Mug on table
                     Place("mug", r.X + 4, r.Y + 4, r.Id);
                     break;
+            }
+            // Density variation: bonus decorations based on room area
+            var area = r.Width * r.Height;
+            var bonusCount = area > 60 ? 4 : area > 40 ? 3 : area > 25 ? 2 : 1;
+            string[] bonusTypes = ["plant", "papers", "mug", "trash", "rug", "clock", "bulletin"];
+
+            for (var b = 0; b < bonusCount; b++)
+            {
+                var bx = rng.Next(r.X + 1, r.X + r.Width - 1);
+                var by = rng.Next(r.Y + 2, r.Y + r.Height - 1);
+                var bType = bonusTypes[rng.Next(bonusTypes.Length)];
+                // Avoid placing on walkway (center column)
+                if (bx != cx || by != cy)
+                    Place(bType, bx, by, r.Id);
             }
         }
 
