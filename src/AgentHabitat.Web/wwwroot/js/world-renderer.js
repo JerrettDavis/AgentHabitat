@@ -241,69 +241,105 @@ window.WorldRenderer = {
       }
     }
 
-    // Agents
+    // Agents (heightmap-lit chibi style)
+    function shade(hex, f) { const rgb = hex2rgb(hex); return rgb2hex(rgb.r*f, rgb.g*f, rgb.b*f); }
+
     for (const agent of (worldData.agents || [])) {
       const ax = agent.x * tileSize + tileSize / 2;
       const ay = agent.y * tileSize + tileSize / 2;
       const sc = agent.status === 'active' ? '#22c55e' : agent.status === 'idle' ? '#eab308' : '#666';
+      const c = agent.color;
+      const cD = shade(c, 0.55), cL = shade(c, 1.35);
+      const skin = '#ffd5a0', skinS = '#d4a870', skinH = '#ffe8c8';
 
       // Shadow
       ctx.fillStyle = '#00000030';
       ctx.beginPath();
-      ctx.ellipse(ax, ay + 14, 10, 4, 0, 0, Math.PI * 2);
+      ctx.ellipse(ax, ay + 15, 12, 5, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Chibi body (head + torso)
-      // Head (large, chibi proportioned)
-      ctx.beginPath();
-      ctx.arc(ax, ay - 6, 10, 0, Math.PI * 2);
-      ctx.fillStyle = '#ffd5a0';
-      ctx.fill();
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-
-      // Hair dome
-      ctx.beginPath();
-      ctx.arc(ax, ay - 10, 10, Math.PI, 0);
-      ctx.fillStyle = agent.color;
-      ctx.fill();
-      // Hair sides
-      ctx.fillRect(ax - 10, ay - 12, 3, 8);
-      ctx.fillRect(ax + 7, ay - 12, 3, 8);
-
-      // Eyes (pixel-precise)
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(ax - 5, ay - 8, 4, 3);
-      ctx.fillRect(ax + 2, ay - 8, 4, 3);
-      ctx.fillStyle = '#4488cc';
-      ctx.fillRect(ax - 4, ay - 7, 2, 2);
-      ctx.fillRect(ax + 3, ay - 7, 2, 2);
+      // 1px outline (draw body shapes slightly larger in black first)
       ctx.fillStyle = '#000';
-      ctx.fillRect(ax - 4, ay - 7, 1, 1);
-      ctx.fillRect(ax + 3, ay - 7, 1, 1);
-      // Eye sparkle
+      ctx.beginPath(); ctx.arc(ax, ay - 6, 11, 0, Math.PI * 2); ctx.fill(); // head outline
+      ctx.beginPath(); ctx.ellipse(ax, ay + 6, 9, 9, 0, 0, Math.PI * 2); ctx.fill(); // body outline
+
+      // Hair dome (full round, colored)
+      ctx.beginPath(); ctx.arc(ax, ay - 6, 10, 0, Math.PI * 2);
+      ctx.fillStyle = c; ctx.fill();
+      // Hair highlight
+      ctx.beginPath(); ctx.arc(ax, ay - 9, 8, Math.PI + 0.3, -0.3);
+      ctx.fillStyle = cL; ctx.fill();
+      // Hair shadow (bottom)
+      ctx.beginPath(); ctx.arc(ax, ay - 3, 9, 0.3, Math.PI - 0.3);
+      ctx.fillStyle = cD; ctx.fill();
+
+      // Face (lower part of head circle)
+      ctx.fillStyle = skin;
+      ctx.beginPath(); ctx.arc(ax, ay - 4, 7, 0.2, Math.PI - 0.2); ctx.fill();
+      // Forehead highlight
+      drawLitRect(ctx, ax - 4, ay - 8, 8, 2, skinH, 9, 1.0);
+      // Jaw shadow
+      drawLitRect(ctx, ax - 5, ay - 1, 10, 2, skinS, 7, 0.6);
+
+      // Eyes (precise pixel placement)
       ctx.fillStyle = '#fff';
-      ctx.fillRect(ax - 3, ay - 8, 1, 1);
-      ctx.fillRect(ax + 4, ay - 8, 1, 1);
+      ctx.fillRect(ax - 5, ay - 6, 4, 3);
+      ctx.fillRect(ax + 2, ay - 6, 4, 3);
+      // Iris
+      ctx.fillStyle = '#4488cc';
+      ctx.fillRect(ax - 4, ay - 5, 2, 2);
+      ctx.fillRect(ax + 3, ay - 5, 2, 2);
+      // Pupil
+      ctx.fillStyle = '#111';
+      ctx.fillRect(ax - 4, ay - 5, 1, 1);
+      ctx.fillRect(ax + 3, ay - 5, 1, 1);
+      // Sparkle
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(ax - 3, ay - 6, 1, 1);
+      ctx.fillRect(ax + 4, ay - 6, 1, 1);
+      // Eyebrows
+      ctx.fillStyle = cD;
+      ctx.fillRect(ax - 5, ay - 8, 3, 1);
+      ctx.fillRect(ax + 3, ay - 8, 3, 1);
+
+      // Nose
+      ctx.fillStyle = skinS;
+      ctx.fillRect(ax, ay - 3, 1, 1);
+      ctx.fillStyle = skinH;
+      ctx.fillRect(ax, ay - 2, 1, 1);
 
       // Mouth
       ctx.fillStyle = '#c08060';
-      ctx.fillRect(ax - 2, ay - 3, 4, 1);
+      ctx.fillRect(ax - 2, ay - 1, 4, 1);
 
-      // Body/shirt
-      ctx.fillStyle = agent.color;
-      ctx.beginPath();
-      ctx.ellipse(ax, ay + 6, 8, 8, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 1;
-      ctx.stroke();
+      // Body/shirt (ellipse with shading)
+      ctx.beginPath(); ctx.ellipse(ax, ay + 6, 8, 8, 0, 0, Math.PI * 2);
+      ctx.fillStyle = c; ctx.fill();
+      // Shirt shading
+      drawLitRect(ctx, ax - 7, ay + 2, 4, 10, cD, 4, 0.5); // left shadow
+      drawLitRect(ctx, ax + 4, ay + 2, 4, 10, cD, 4, 0.5); // right shadow
+      drawLitRect(ctx, ax - 3, ay + 2, 6, 6, cL, 5, 1.0); // center highlight
+      // Collar
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(ax - 2, ay - 1, 5, 2);
+
+      // Arms
+      drawLitRect(ctx, ax - 12, ay + 1, 5, 10, c, 4, 0.7);
+      drawLitRect(ctx, ax + 8, ay + 1, 5, 10, c, 4, 0.7);
+      drawLitRect(ctx, ax - 12, ay + 1, 2, 10, cD, 3, 0.5); // arm shadow
+      drawLitRect(ctx, ax + 11, ay + 1, 2, 10, cD, 3, 0.5);
+      // Hands
+      drawLitRect(ctx, ax - 11, ay + 11, 4, 3, skin, 3, 0.7);
+      drawLitRect(ctx, ax + 8, ay + 11, 4, 3, skin, 3, 0.7);
 
       // Legs
-      ctx.fillStyle = '#2a2a3a';
-      ctx.fillRect(ax - 5, ay + 12, 4, 4);
-      ctx.fillRect(ax + 1, ay + 12, 4, 4);
+      drawLitRect(ctx, ax - 5, ay + 13, 4, 5, '#2a2a40', 4, 0.7);
+      drawLitRect(ctx, ax + 2, ay + 13, 4, 5, '#2a2a40', 4, 0.7);
+      drawLitRect(ctx, ax - 1, ay + 14, 2, 4, '#151520', 3, 0.4); // leg gap
+
+      // Shoes
+      drawLitRect(ctx, ax - 6, ay + 18, 5, 2, '#1a1a1a', 2, 0.5);
+      drawLitRect(ctx, ax + 2, ay + 18, 5, 2, '#1a1a1a', 2, 0.5);
 
       // Status dot
       ctx.beginPath();
