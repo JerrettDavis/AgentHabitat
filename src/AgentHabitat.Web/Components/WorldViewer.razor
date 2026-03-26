@@ -31,6 +31,11 @@
         <button class="habitat-btn-secondary" @onclick="ToggleMinimap">
             Minimap @(_showMinimap ? "ON" : "OFF")
         </button>
+        <button class="@(_editMode ? "habitat-btn-primary" : "habitat-btn-secondary")"
+                style="@(_editMode ? "background:var(--accent-orange)" : "")"
+                @onclick="ToggleEditMode">
+            @(_editMode ? "Exit Edit" : "Edit Mode")
+        </button>
     </div>
 
     @if (_selectedPreset != "custom")
@@ -109,6 +114,39 @@
                 </button>
             </div>
         }
+
+        @if (_editMode)
+        {
+            <div class="habitat-panel" style="border-color:var(--accent-orange)">
+                <h3 style="color:var(--accent-orange)">Edit Mode</h3>
+                <div class="meta">Click an object to select · Use actions below</div>
+
+                <div style="margin-bottom:var(--sp-3)">
+                    <div class="section-label">Actions</div>
+                    <div style="display:flex;flex-direction:column;gap:var(--sp-2)">
+                        <button class="habitat-btn-secondary" @onclick="EditMove" disabled="@(!_hasEditSelection)">
+                            Move Selected
+                        </button>
+                        <button class="habitat-btn-secondary" @onclick="EditRemove" disabled="@(!_hasEditSelection)"
+                                style="@(_hasEditSelection ? "color:var(--accent-red);border-color:var(--accent-red)" : "")">
+                            Remove Selected
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="section-label">Add Object</div>
+                    <div style="display:flex;gap:var(--sp-1);flex-wrap:wrap">
+                        @foreach (var objType in new[] { "desk", "chair", "plant", "lamp", "bookshelf", "couch", "table", "rug", "clock", "mug", "trash" })
+                        {
+                            <button class="habitat-tag" style="cursor:pointer" @onclick="() => EditAdd(objType)">
+                                + @objType
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
     </div>
 
     @if (_selectedAgent != null)
@@ -149,6 +187,8 @@
     private string Seed { get; set; } = "startup-hq";
     private string Style { get; set; } = "retro-office";
     private bool _showMinimap = true;
+    private bool _editMode = false;
+    private bool _hasEditSelection = false;
     private WorldRenderData? _renderData;
     private RoomRenderData? _selectedRoom;
     private AgentRenderData? _selectedAgent;
@@ -173,6 +213,30 @@
         _selectedAgent = null;
         StateHasChanged();
         await JS.InvokeVoidAsync("WorldRenderer.render", "world-canvas", _renderData);
+    }
+
+    private async Task ToggleEditMode()
+    {
+        _editMode = !_editMode;
+        _hasEditSelection = false;
+        await JS.InvokeVoidAsync("WorldRenderer.setEditMode", "world-canvas", _editMode);
+    }
+
+    private async Task EditMove()
+    {
+        await JS.InvokeVoidAsync("WorldRenderer.setEditAction", "world-canvas", "move", null);
+    }
+
+    private async Task EditRemove()
+    {
+        await JS.InvokeVoidAsync("WorldRenderer.removeSelectedObject", "world-canvas");
+        _hasEditSelection = false;
+        StateHasChanged();
+    }
+
+    private async Task EditAdd(string objType)
+    {
+        await JS.InvokeVoidAsync("WorldRenderer.setEditAction", "world-canvas", "add", objType);
     }
 
     private async Task OnPresetChanged()

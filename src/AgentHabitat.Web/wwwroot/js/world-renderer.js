@@ -507,8 +507,37 @@ window.WorldRenderer = {
     ctx.fillText('MAP', mmX + mmW, mmY - 5);
     } // end minimap toggle
 
-    // Persistent selection highlights
-    if (canvas._selectedAgentId) {
+    // Edit mode overlay
+    if (canvas._editMode) {
+      // Edit mode indicator
+      ctx.fillStyle = '#f9731640';
+      ctx.fillRect(0, canvas.height - 24, canvas.width, 24);
+      ctx.fillStyle = '#f97316';
+      ctx.font = 'bold 11px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('EDIT MODE — Click objects to select · Actions in panel', canvas.width / 2, canvas.height - 8);
+
+      // Highlight selected object
+      if (canvas._editSelectedObj) {
+        const selObj = (worldData.objects || []).find(o => o.id === canvas._editSelectedObj);
+        if (selObj) {
+          const sox = selObj.x * tileSize, soy = selObj.y * tileSize;
+          ctx.strokeStyle = '#f97316';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([4, 3]);
+          ctx.strokeRect(sox + 1, soy + 1, tileSize - 2, tileSize - 2);
+          ctx.setLineDash([]);
+          // Label
+          ctx.fillStyle = '#f97316';
+          ctx.font = '8px system-ui';
+          ctx.textAlign = 'center';
+          ctx.fillText(selObj.type, sox + tileSize / 2, soy - 3);
+        }
+      }
+    }
+
+    // Persistent selection highlights (normal mode)
+    if (!canvas._editMode && canvas._selectedAgentId) {
       const selAgent = (worldData.agents || []).find(a => a.id === canvas._selectedAgentId);
       if (selAgent) {
         const sax = selAgent.x * tileSize + tileSize / 2;
@@ -525,7 +554,7 @@ window.WorldRenderer = {
         ctx.fillText('SELECTED', sax, say + 24);
       }
     }
-    if (canvas._selectedRoomId) {
+    if (!canvas._editMode && canvas._selectedRoomId) {
       const selRoom = worldData.rooms.find(r => r.id === canvas._selectedRoomId);
       if (selRoom) {
         const srx = selRoom.x * tileSize, sry = selRoom.y * tileSize;
@@ -636,7 +665,60 @@ window.WorldRenderer = {
         const ty = Math.floor(my / ts);
 
         // Check if an agent was clicked (priority over room)
-        // Check if any agent is moving — block clicks during movement
+        // Edit mode interactions
+        if (canvas._editMode) {
+          const action = canvas._editAction;
+
+          if (action === 'add' && canvas._editAddType) {
+            // Add new object at clicked tile
+            if (wd.tiles[ty * wd.width + tx] > 0) {
+              const newObj = {
+                id: `edit-${Date.now()}`,
+                type: canvas._editAddType,
+                x: tx, y: ty,
+                roomId: 'user-placed'
+              };
+              wd.objects = wd.objects || [];
+              wd.objects.push(newObj);
+              canvas._editAction = null;
+              WorldRenderer.render(canvasId, wd);
+              if (window._blazorEditCallback) window._blazorEditCallback('added', newObj);
+            }
+            return;
+          }
+
+          // Select or move object
+          const clickedObj = (wd.objects || []).find(o => o.x === tx && o.y === ty);
+
+          if (canvas._editSelectedObj && action === 'move') {
+            // Move selected object to clicked tile
+            if (wd.tiles[ty * wd.width + tx] > 0) {
+              const obj = (wd.objects || []).find(o => o.id === canvas._editSelectedObj);
+              if (obj) {
+                obj.x = tx;
+                obj.y = ty;
+                canvas._editAction = null;
+                WorldRenderer.render(canvasId, wd);
+                if (window._blazorEditCallback) window._blazorEditCallback('moved', obj);
+              }
+            }
+            return;
+          }
+
+          if (clickedObj) {
+            canvas._editSelectedObj = clickedObj.id;
+            canvas._editAction = null;
+            WorldRenderer.render(canvasId, wd);
+            if (window._blazorEditCallback) window._blazorEditCallback('selected', clickedObj);
+          } else {
+            canvas._editSelectedObj = null;
+            WorldRenderer.render(canvasId, wd);
+            if (window._blazorEditCallback) window._blazorEditCallback('deselected', null);
+          }
+          return;
+        }
+
+        // Normal mode: check if any agent is moving — block clicks during movement
         const anyMoving = (wd.agents || []).some(a => a._moving);
         if (anyMoving) return;
 
@@ -808,6 +890,45 @@ window.WorldRenderer = {
       step++;
       WorldRenderer.render(canvasId, wd);
     }, 150);
+  },
+
+  // Edit mode API
+  setEditMode: function (canvasId, enabled) {
+    const canvas = document.getElementById(canvasId);
+    if (canvas) {
+      canvas._editMode = enabled;
+      canvas._editAction = null; // 'select' | 'move' | 'add' | null
+      canvas._editSelectedObj = null;
+      canvas._editAddType = null;
+      if (canvas._worldData) WorldRenderer.render(canvasId, canvas._worldData);
+    }
+  },
+
+  setEditAction: function (canvasId, action, addType) {
+    const canvas = document.getElementById(canvasId);
+    if (canvas) {
+      canvas._editAction = action;
+      canvas._editAddType = addType || null;
+    }
+  },
+
+  removeSelectedObject: function (canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !canvas._worldData || !canvas._editSelectedObj) return null;
+    const wd = canvas._worldData;
+    const idx = (wd.objects || []).findIndex(o => o.id === canvas._editSelectedObj);
+    if (idx >= 0) {
+      const removed = wd.objects.splice(idx, 1)[0];
+      canvas._editSelectedObj = null;
+      WorldRenderer.render(canvasId, wd);
+      return removed;
+    }
+    return null;
+  },
+
+  getObjects: function (canvasId) {
+    const canvas = document.getElementById(canvasId);
+    return canvas?._worldData?.objects || [];
   },
 
   // Start idle animation loop (agents sway slightly)
