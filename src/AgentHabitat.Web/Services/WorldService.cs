@@ -7,6 +7,17 @@ public class WorldService
 {
     private readonly DeterministicWorldGenerator _generator = new();
 
+    public static readonly Dictionary<string, WorldPreset> Presets = new()
+    {
+        ["startup-office"] = new("Startup Office", "startup-hq", "retro-office",
+            "Open-plan startup with coding pods, a war room, and a cozy lounge"),
+        ["research-lab"] = new("Research Lab", "lab-alpha", "forest-lab",
+            "Quiet research facility with library, review room, and green spaces"),
+        ["cozy-studio"] = new("Cozy Studio", "studio-zen", "neon-hq",
+            "Creative studio with reading nooks, art walls, and ambient lighting"),
+        ["custom"] = new("Custom", "alpha-001", "retro-office", "Enter your own seed and style"),
+    };
+
     public WorldGenerationResult Generate(string seed, string style = "retro-office")
     {
         var options = new WorldGenerationOptions(
@@ -18,6 +29,12 @@ public class WorldService
         );
 
         return _generator.GenerateWorld(seed, options);
+    }
+
+    public WorldGenerationResult GenerateFromPreset(string presetId)
+    {
+        var preset = Presets.GetValueOrDefault(presetId) ?? Presets["custom"];
+        return Generate(preset.Seed, preset.Style);
     }
 
     public WorldRenderData ToRenderData(WorldGenerationResult world)
@@ -238,6 +255,13 @@ public record RoomRenderData(
     int Y,
     int Width,
     int Height
+);
+
+public record WorldPreset(
+    string Name,
+    string Seed,
+    string Style,
+    string Description
 );
 
 public record AgentRenderData(

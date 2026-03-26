@@ -9,11 +9,19 @@
     </div>
 
     <div class="habitat-controls">
+        <label>Preset</label>
+        <select @bind="SelectedPreset" @bind:after="OnPresetChanged">
+            @foreach (var (id, preset) in WorldService.Presets)
+            {
+                <option value="@id">@preset.Name</option>
+            }
+        </select>
+
         <label>Seed</label>
-        <input @bind="Seed" @bind:event="oninput" placeholder="alpha-001" />
+        <input @bind="Seed" @bind:event="oninput" placeholder="alpha-001" disabled="@(_selectedPreset != "custom")" />
 
         <label>Style</label>
-        <select @bind="Style">
+        <select @bind="Style" disabled="@(_selectedPreset != "custom")">
             <option value="retro-office">Retro Office</option>
             <option value="forest-lab">Forest Lab</option>
             <option value="neon-hq">Neon HQ</option>
@@ -24,6 +32,13 @@
             Minimap @(_showMinimap ? "ON" : "OFF")
         </button>
     </div>
+
+    @if (_selectedPreset != "custom")
+    {
+        <div class="habitat-hint" style="margin-bottom:var(--sp-3)">
+            @(WorldService.Presets[_selectedPreset].Description)
+        </div>
+    }
 
     @if (_renderData != null)
     {
@@ -129,7 +144,9 @@
 </div>
 
 @code {
-    private string Seed { get; set; } = "alpha-001";
+    private string _selectedPreset = "startup-office";
+    private string SelectedPreset { get => _selectedPreset; set => _selectedPreset = value; }
+    private string Seed { get; set; } = "startup-hq";
     private string Style { get; set; } = "retro-office";
     private bool _showMinimap = true;
     private WorldRenderData? _renderData;
@@ -156,6 +173,16 @@
         _selectedAgent = null;
         StateHasChanged();
         await JS.InvokeVoidAsync("WorldRenderer.render", "world-canvas", _renderData);
+    }
+
+    private async Task OnPresetChanged()
+    {
+        if (WorldService.Presets.TryGetValue(_selectedPreset, out var preset))
+        {
+            Seed = preset.Seed;
+            Style = preset.Style;
+            await Generate();
+        }
     }
 
     private async Task ToggleMinimap()
