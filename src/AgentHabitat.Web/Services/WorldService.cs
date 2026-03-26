@@ -42,26 +42,140 @@ public class WorldService
             }
         }
 
-        // Generate objects per room archetype
+        // Generate objects with curated room layout kits ("lived-in" presets)
         var objects = new List<ObjectRenderData>();
         var objId = 1;
+
+        void Place(string type, int x, int y, string roomId)
+        {
+            if (x >= 0 && y >= 0 && x < world.Width && y < world.Height)
+                objects.Add(new ObjectRenderData($"obj-{objId++}", type, x, y, roomId));
+        }
+
         foreach (var r in world.Rooms)
         {
-            var archetype = r.Archetype.ToString();
-            string[] types = archetype switch
+            var rng = new Random(r.X * 1000 + r.Y);
+            var cx = r.X + r.Width / 2;
+            var cy = r.Y + r.Height / 2;
+
+            switch (r.Archetype)
             {
-                "CodingRoom" => ["desk", "monitor", "chair"],
-                "ReviewRoom" => ["whiteboard", "chair", "chair"],
-                "Library" => ["bookshelf", "bookshelf", "lamp"],
-                _ => ["couch", "plant", "lamp"],
-            };
-            // Place 3-4 objects per room
-            var rng = new Random(r.X * 1000 + r.Y); // deterministic per-room
-            foreach (var t in types)
+                case RoomArchetype.CodingRoom:
+                    // Desk islands (2 rows of workstations)
+                    for (var row = 0; row < Math.Min(2, r.Height / 3); row++)
+                    {
+                        var dy = r.Y + 2 + row * 3;
+                        Place("desk", r.X + 2, dy, r.Id);
+                        Place("monitor", r.X + 3, dy, r.Id);
+                        Place("chair", r.X + 4, dy, r.Id);
+                        if (r.Width > 7)
+                        {
+                            Place("desk", r.X + r.Width - 4, dy, r.Id);
+                            Place("monitor", r.X + r.Width - 3, dy, r.Id);
+                            Place("chair", r.X + r.Width - 5, dy, r.Id);
+                        }
+                    }
+                    // Whiteboard wall
+                    Place("whiteboard", cx, r.Y + 1, r.Id);
+                    // Coffee corner
+                    Place("coffee", r.X + r.Width - 2, r.Y + r.Height - 2, r.Id);
+                    Place("mug", r.X + r.Width - 2, r.Y + r.Height - 3, r.Id);
+                    // Plant + trash
+                    Place("plant", r.X + 1, r.Y + r.Height - 2, r.Id);
+                    Place("trash", r.X + 1, r.Y + 1, r.Id);
+                    // Cable clutter
+                    Place("cables", r.X + 3, r.Y + r.Height - 2, r.Id);
+                    // Wall clock
+                    Place("clock", cx + 2, r.Y + 1, r.Id);
+                    break;
+
+                case RoomArchetype.ReviewRoom:
+                    // Conference table (center)
+                    Place("table", cx - 1, cy, r.Id);
+                    Place("table", cx, cy, r.Id);
+                    Place("table", cx + 1, cy, r.Id);
+                    // Chairs around table
+                    Place("chair", cx - 1, cy - 1, r.Id);
+                    Place("chair", cx, cy - 1, r.Id);
+                    Place("chair", cx + 1, cy - 1, r.Id);
+                    Place("chair", cx - 1, cy + 1, r.Id);
+                    Place("chair", cx + 1, cy + 1, r.Id);
+                    // Presentation screen
+                    Place("screen", cx, r.Y + 1, r.Id);
+                    // Whiteboard
+                    Place("whiteboard", r.X + 1, cy, r.Id);
+                    // Water cooler
+                    Place("cooler", r.X + r.Width - 2, r.Y + 1, r.Id);
+                    // Bulletin board
+                    Place("bulletin", r.X + r.Width - 2, cy, r.Id);
+                    // Plant
+                    Place("plant", r.X + 1, r.Y + r.Height - 2, r.Id);
+                    // Notes/papers
+                    Place("papers", cx + 1, cy + 1, r.Id);
+                    break;
+
+                case RoomArchetype.Library:
+                    // Wall shelves (left + right walls)
+                    for (var sy = r.Y + 1; sy < r.Y + r.Height - 1; sy += 2)
+                    {
+                        Place("bookshelf", r.X + 1, sy, r.Id);
+                        if (r.Width > 5) Place("bookshelf", r.X + r.Width - 2, sy, r.Id);
+                    }
+                    // Reading nook (center)
+                    Place("chair", cx, cy, r.Id);
+                    Place("lamp", cx + 1, cy, r.Id);
+                    Place("desk", cx - 1, cy, r.Id);
+                    // Rug under reading area
+                    Place("rug", cx, cy + 1, r.Id);
+                    // Globe or art
+                    Place("globe", r.X + r.Width - 2, r.Y + r.Height - 2, r.Id);
+                    // Plant
+                    Place("plant", r.X + 1, r.Y + r.Height - 2, r.Id);
+                    // Clock
+                    Place("clock", cx, r.Y + 1, r.Id);
+                    break;
+
+                default: // Lounge
+                    // Couch cluster
+                    Place("couch", r.X + 2, r.Y + 2, r.Id);
+                    if (r.Width > 6) Place("couch", r.X + 4, r.Y + 2, r.Id);
+                    // Coffee table
+                    Place("table", r.X + 3, r.Y + 4, r.Id);
+                    // TV/screen
+                    Place("screen", cx, r.Y + 1, r.Id);
+                    // Vending machine
+                    Place("vending", r.X + r.Width - 2, r.Y + 1, r.Id);
+                    // Plants (multiple)
+                    Place("plant", r.X + 1, r.Y + 1, r.Id);
+                    Place("plant", r.X + r.Width - 2, r.Y + r.Height - 2, r.Id);
+                    // Rug
+                    Place("rug", r.X + 3, r.Y + 3, r.Id);
+                    // Lamp
+                    Place("lamp", r.X + r.Width - 2, cy, r.Id);
+                    // Magazines/papers
+                    Place("papers", r.X + 3, r.Y + 5, r.Id);
+                    // Coat rack
+                    Place("coatrack", r.X + 1, r.Y + r.Height - 2, r.Id);
+                    // Mug on table
+                    Place("mug", r.X + 4, r.Y + 4, r.Id);
+                    break;
+            }
+        }
+
+        // Corridor dressing — add plants and mats near room doors
+        for (var y = 0; y < world.Height; y++)
+        {
+            for (var x = 0; x < world.Width; x++)
             {
-                var ox = rng.Next(r.X + 1, r.X + r.Width - 1);
-                var oy = rng.Next(r.Y + 1, r.Y + r.Height - 1);
-                objects.Add(new ObjectRenderData($"obj-{objId++}", t, ox, oy, r.Id));
+                if (!world.Walkable[x, y]) continue;
+                var inRoom = world.Rooms.Any(r =>
+                    x >= r.X && x < r.X + r.Width && y >= r.Y && y < r.Y + r.Height);
+                if (inRoom) continue;
+
+                // Sparse corridor decoration (deterministic)
+                var hash = x * 73 + y * 137;
+                if (hash % 23 == 0) Place("plant", x, y, "corridor");
+                else if (hash % 31 == 0) Place("mat", x, y, "corridor");
             }
         }
 

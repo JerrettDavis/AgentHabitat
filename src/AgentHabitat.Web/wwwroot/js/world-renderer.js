@@ -260,10 +260,71 @@ window.WorldRenderer = {
         // Glow
         ctx.fillStyle = '#ffee8820';
         ctx.beginPath(); ctx.arc(ox+16, oy+8, 10, 0, Math.PI*2); ctx.fill();
+      } else if (t === 'coffee' || t === 'cooler' || t === 'vending') {
+        // Tall appliance
+        drawLitRect(ctx, ox+8, oy+4, 16, 22, matPal.metal, 4, 0.8);
+        drawLitRect(ctx, ox+10, oy+6, 12, 8, tintColor('#334', tint), 5, 0.6);
+        drawLitRect(ctx, ox+10, oy+16, 12, 6, matPal.metal, 3, 0.5);
+        if (t === 'vending') { ctx.fillStyle = tintColor('#22c55e', tint); ctx.fillRect(ox+12, oy+8, 2, 2); }
+      } else if (t === 'mug') {
+        drawLitRect(ctx, ox+12, oy+12, 8, 8, tintColor('#ddd', tint), 3, 0.8);
+        drawLitRect(ctx, ox+20, oy+14, 3, 4, tintColor('#ccc', tint), 2, 0.6);
+        ctx.fillStyle = tintColor('#654', tint); ctx.fillRect(ox+13, oy+13, 6, 5); // coffee
+      } else if (t === 'cables') {
+        ctx.strokeStyle = tintColor('#444', tint); ctx.lineWidth = 1;
+        for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(ox+8+i*5, oy+10); ctx.bezierCurveTo(ox+6+i*4, oy+20, ox+14+i*3, oy+22, ox+10+i*5, oy+28); ctx.stroke(); }
+      } else if (t === 'clock') {
+        ctx.fillStyle = tintColor('#fff', tint); ctx.beginPath(); ctx.arc(ox+16, oy+10, 6, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(ox+16, oy+10, 6, 0, Math.PI*2); ctx.stroke();
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(ox+16, oy+10); ctx.lineTo(ox+16, oy+6); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(ox+16, oy+10); ctx.lineTo(ox+19, oy+10); ctx.stroke();
+      } else if (t === 'screen') {
+        drawLitRect(ctx, ox+4, oy+4, 24, 16, matPal.metal, 5, 0.9);
+        drawLitRect(ctx, ox+6, oy+6, 20, 12, tintColor('#1a3050', tint), 5.5, 0.7);
+        drawLitRect(ctx, ox+14, oy+20, 4, 4, matPal.metal, 3, 0.6);
+        drawLitRect(ctx, ox+10, oy+24, 12, 2, matPal.metal, 2, 0.5);
+      } else if (t === 'bulletin') {
+        drawLitRect(ctx, ox+4, oy+4, 24, 18, tintColor('#8b6914', tint), 4, 0.7);
+        const noteColors = ['#f87171','#60a5fa','#facc15','#34d399','#c084fc'];
+        for (let i = 0; i < 5; i++) { ctx.fillStyle = tintColor(noteColors[i], tint); ctx.fillRect(ox+6+i*4, oy+6+(i%3)*4, 3, 3); }
+      } else if (t === 'papers') {
+        ctx.fillStyle = tintColor('#e8e0d0', tint);
+        ctx.fillRect(ox+10, oy+12, 8, 10); ctx.fillRect(ox+12, oy+10, 8, 10);
+        ctx.fillStyle = tintColor('#999', tint);
+        for (let i = 0; i < 3; i++) ctx.fillRect(ox+12, oy+14+i*3, 6, 1);
+      } else if (t === 'globe') {
+        ctx.fillStyle = tintColor('#3b82f6', tint); ctx.beginPath(); ctx.arc(ox+16, oy+12, 7, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = tintColor('#22c55e', tint); ctx.fillRect(ox+12, oy+9, 4, 3); ctx.fillRect(ox+17, oy+12, 3, 2);
+        drawLitRect(ctx, ox+14, oy+20, 4, 6, matPal.woodDark, 2, 0.5);
+      } else if (t === 'rug') {
+        const rugColor = tintColor('#8b4513', tint);
+        ctx.fillStyle = rugColor + '40';
+        ctx.beginPath(); ctx.ellipse(ox+16, oy+16, 14, 10, 0, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = rugColor + '60'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.ellipse(ox+16, oy+16, 14, 10, 0, 0, Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(ox+16, oy+16, 10, 7, 0, 0, Math.PI*2); ctx.stroke();
+      } else if (t === 'mat') {
+        ctx.fillStyle = tintColor('#555', tint) + '50';
+        ctx.fillRect(ox+6, oy+10, 20, 12);
+      } else if (t === 'table') {
+        drawLitRect(ctx, ox+6, oy+8, 20, 14, matPal.wood, 3, 0.8);
+        drawLitRect(ctx, ox+7, oy+9, 18, 2, matPal.woodLight, 4, 1.0);
+        drawLitRect(ctx, ox+8, oy+22, 3, 6, matPal.woodDark, 1, 0.5);
+        drawLitRect(ctx, ox+21, oy+22, 3, 6, matPal.woodDark, 1, 0.5);
+      } else if (t === 'trash') {
+        drawLitRect(ctx, ox+10, oy+10, 12, 14, tintColor('#555', tint), 3, 0.6);
+        drawLitRect(ctx, ox+11, oy+11, 10, 2, tintColor('#666', tint), 3.5, 0.7);
+        ctx.fillStyle = tintColor('#888', tint); ctx.fillRect(ox+13, oy+8, 6, 3); // crumpled paper
+      } else if (t === 'coatrack') {
+        drawLitRect(ctx, ox+15, oy+4, 2, 20, matPal.woodDark, 2, 0.6);
+        drawLitRect(ctx, ox+10, oy+24, 12, 3, matPal.woodDark, 1, 0.5);
+        // Hooks + coat
+        ctx.fillStyle = tintColor('#4a6', tint); ctx.fillRect(ox+10, oy+6, 5, 8); // jacket
+        ctx.fillStyle = matPal.metal; ctx.fillRect(ox+12, oy+5, 2, 2); ctx.fillRect(ox+18, oy+5, 2, 2);
       } else {
         // Fallback dot
         ctx.fillStyle = pal.accent + '40';
-        ctx.beginPath(); ctx.arc(ox+16, oy+16, 8, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(ox+16, oy+16, 6, 0, Math.PI*2); ctx.fill();
       }
     }
 
