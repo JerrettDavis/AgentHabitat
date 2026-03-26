@@ -48,6 +48,57 @@ const PALETTES = {
   },
 };
 
+// Object property registry — defines physical behavior per type
+const OBJ_PROPS = {
+  // Solid furniture (blocks walking)
+  'desk':       { solid: true,  surface: true,  wallMount: false, placement: 'floor' },
+  'table':      { solid: true,  surface: true,  wallMount: false, placement: 'floor' },
+  'bookshelf':  { solid: true,  surface: false, wallMount: true,  placement: 'wall' },
+  'couch':      { solid: true,  surface: false, wallMount: false, placement: 'floor' },
+  'server':     { solid: true,  surface: false, wallMount: true,  placement: 'wall' },
+  'filing':     { solid: true,  surface: false, wallMount: true,  placement: 'wall' },
+  'vending':    { solid: true,  surface: false, wallMount: true,  placement: 'wall' },
+  'coffee':     { solid: true,  surface: true,  wallMount: false, placement: 'floor' },
+  'cooler':     { solid: true,  surface: false, wallMount: false, placement: 'floor' },
+  'coatrack':   { solid: true,  surface: false, wallMount: false, placement: 'floor' },
+
+  // Wall-mounted (blocks walking, must be on wall)
+  'whiteboard': { solid: true,  surface: false, wallMount: true,  placement: 'wall' },
+  'screen':     { solid: true,  surface: false, wallMount: true,  placement: 'wall' },
+  'bulletin':   { solid: false, surface: false, wallMount: true,  placement: 'wall' },
+  'art-frame':  { solid: false, surface: false, wallMount: true,  placement: 'wall' },
+  'calendar':   { solid: false, surface: false, wallMount: true,  placement: 'wall' },
+  'clock':      { solid: false, surface: false, wallMount: true,  placement: 'wall' },
+  'window':     { solid: false, surface: false, wallMount: true,  placement: 'wall' },
+  'fire-ext':   { solid: false, surface: false, wallMount: true,  placement: 'wall' },
+
+  // Small props (can be placed on surfaces)
+  'monitor':    { solid: false, surface: false, wallMount: false, placement: 'surface' },
+  'keyboard':   { solid: false, surface: false, wallMount: false, placement: 'surface' },
+  'mug':        { solid: false, surface: false, wallMount: false, placement: 'surface' },
+  'papers':     { solid: false, surface: false, wallMount: false, placement: 'surface' },
+  'headphones': { solid: false, surface: false, wallMount: false, placement: 'surface' },
+  'snack-bowl': { solid: false, surface: false, wallMount: false, placement: 'surface' },
+  'globe':      { solid: false, surface: false, wallMount: false, placement: 'surface' },
+  'cables':     { solid: false, surface: false, wallMount: false, placement: 'floor' },
+
+  // Seating (solid but walkable-adjacent)
+  'chair':      { solid: true,  surface: false, wallMount: false, placement: 'floor' },
+
+  // Floor items (freestanding, don't block)
+  'plant':      { solid: false, surface: false, wallMount: false, placement: 'floor' },
+  'potted-tree':{ solid: true,  surface: false, wallMount: false, placement: 'floor' },
+  'lamp':       { solid: false, surface: false, wallMount: false, placement: 'floor' },
+  'fan':        { solid: false, surface: false, wallMount: false, placement: 'floor' },
+  'trash':      { solid: false, surface: false, wallMount: false, placement: 'floor' },
+  'rug':        { solid: false, surface: false, wallMount: false, placement: 'floor' },
+  'mat':        { solid: false, surface: false, wallMount: false, placement: 'floor' },
+};
+
+function getObjProps(type) {
+  return OBJ_PROPS[type] || { solid: false, surface: false, wallMount: false, placement: 'floor' };
+}
+
 window.WorldRenderer = {
   render: function (canvasId, worldData) {
     const canvas = document.getElementById(canvasId);
@@ -1108,6 +1159,16 @@ window.WorldRenderer = {
     window._blazorAgentClickCallback = callback;
   },
 
+  // Build solid-object set from world data (tiles blocked by furniture)
+  _buildSolidSet: function (wd) {
+    const set = new Set();
+    for (const obj of (wd.objects || [])) {
+      const props = getObjProps(obj.type);
+      if (props.solid) set.add(`${obj.x},${obj.y}`);
+    }
+    return set;
+  },
+
   // Build door lookup map from world data (position → door object)
   _buildDoorMap: function (wd) {
     const map = new Map();
@@ -1132,18 +1193,23 @@ window.WorldRenderer = {
     const agent = (wd.agents || []).find(a => a.id === agentId);
     if (!agent) return;
 
-    // Door-aware BFS pathfinding
+    // Door-aware + solid-object-aware BFS pathfinding
     const W = wd.width, H = wd.height;
     const doorMap = this._buildDoorMap(wd);
+    const solidSet = this._buildSolidSet(wd);
 
     const isWalkable = (x, y) => {
       if (x < 0 || y < 0 || x >= W || y >= H) return false;
       return wd.tiles[y * W + x] > 0;
     };
 
-    // Check if movement from (fx,fy) to (tx,ty) is allowed considering doors
+    // Check if movement from (fx,fy) to (tx,ty) is allowed considering doors + solid objects
     const canTraverse = (fx, fy, tx, ty) => {
       if (!isWalkable(tx, ty)) return false;
+
+      // Solid objects block movement (unless it's the target tile — allow clicking destination)
+      if (solidSet.has(`${tx},${ty}`) && !(tx === targetX && ty === targetY))
+        return false;
 
       const fromRoom = this._findRoom(fx, fy, wd.rooms);
       const toRoom = this._findRoom(tx, ty, wd.rooms);
@@ -1247,7 +1313,7 @@ window.WorldRenderer = {
   },
 
   // Placement validation — returns { valid, reason }
-  validatePlacement: function (canvasId, tx, ty, excludeObjId) {
+  validatePlacement: function (canvasId, tx, ty, excludeObjId, objType) {
     const canvas = document.getElementById(canvasId);
     if (!canvas || !canvas._worldData) return { valid: false, reason: 'no-world' };
     const wd = canvas._worldData;
@@ -1261,17 +1327,33 @@ window.WorldRenderer = {
     if (wd.tiles[ty * W + tx] <= 0)
       return { valid: false, reason: 'unwalkable' };
 
-    // No overlap with existing objects
-    const occupied = (wd.objects || []).some(o =>
-      o.x === tx && o.y === ty && o.id !== excludeObjId
-    );
-    if (occupied)
-      return { valid: false, reason: 'object-overlap' };
-
     // No overlap with agents
     const agentHere = (wd.agents || []).some(a => a.x === tx && a.y === ty);
     if (agentHere)
       return { valid: false, reason: 'agent-overlap' };
+
+    // Check object property rules
+    const props = objType ? getObjProps(objType) : null;
+    const objectsHere = (wd.objects || []).filter(o =>
+      o.x === tx && o.y === ty && o.id !== excludeObjId
+    );
+
+    if (props && props.placement === 'surface') {
+      // Surface items MUST be placed on a tile with a surface object
+      const hasSurface = objectsHere.some(o => getObjProps(o.type).surface);
+      if (!hasSurface)
+        return { valid: false, reason: 'needs-surface' };
+    } else if (props && props.solid) {
+      // Solid objects can't overlap other solid objects
+      const hasSolid = objectsHere.some(o => getObjProps(o.type).solid);
+      if (hasSolid)
+        return { valid: false, reason: 'object-overlap' };
+    } else {
+      // Non-surface, non-solid items: check for solid overlap
+      const hasSolid = objectsHere.some(o => getObjProps(o.type).solid && !getObjProps(o.type).surface);
+      if (hasSolid && !(props && props.placement === 'wall'))
+        return { valid: false, reason: 'object-overlap' };
+    }
 
     return { valid: true, reason: null };
   },
@@ -1489,6 +1571,16 @@ window.WorldRenderer = {
     const canvas = document.getElementById(canvasId);
     if (!canvas || !canvas._worldData) return null;
     return (canvas._worldData.doors || []).find(d => d.x === tx && d.y === ty) || null;
+  },
+
+  // Get object properties for a type
+  getObjectProps: function (type) {
+    return getObjProps(type);
+  },
+
+  // Get all object property definitions
+  getObjectRegistry: function () {
+    return OBJ_PROPS;
   },
 
   // Start idle animation loop (agents sway slightly)

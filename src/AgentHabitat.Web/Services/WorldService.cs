@@ -57,6 +57,14 @@ public class WorldService
         return Generate(preset.Seed, preset.Style);
     }
 
+    // Check if a tile is on the room perimeter (wall-adjacent)
+    private static bool IsWallTile(int x, int y, RoomPlacement r) =>
+        x == r.X || x == r.X + r.Width - 1 || y == r.Y || y == r.Y + r.Height - 1;
+
+    // Check if a tile is in the room interior (not on perimeter)
+    private static bool IsInteriorTile(int x, int y, RoomPlacement r) =>
+        x > r.X && x < r.X + r.Width - 1 && y > r.Y && y < r.Y + r.Height - 1;
+
     public WorldRenderData ToRenderData(WorldGenerationResult world)
     {
         var tiles = new int[world.Width * world.Height];
