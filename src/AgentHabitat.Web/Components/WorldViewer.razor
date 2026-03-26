@@ -293,6 +293,7 @@
         // Reset base snapshot for override layer
         await JS.InvokeVoidAsync("eval", "document.getElementById('world-canvas')._baseObjects = null");
         await JS.InvokeVoidAsync("WorldRenderer.render", "world-canvas", _renderData);
+        await JS.InvokeVoidAsync("WorldRenderer.startIdleAnimation", "world-canvas");
     }
 
     private async Task ToggleEditMode()

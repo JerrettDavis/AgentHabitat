@@ -695,6 +695,113 @@ window.WorldRenderer = {
       ctx.fillText(agent.name, ax, ay - 15);
     }
 
+    // === Social Behaviors Layer ===
+    const time = Date.now();
+    const idleFrame = canvas._idleFrame || 0;
+
+    // 1. Proximity lines — draw subtle connection lines between nearby agents
+    const proxRadius = 5; // tiles
+    for (let i = 0; i < (worldData.agents || []).length; i++) {
+      for (let j = i + 1; j < (worldData.agents || []).length; j++) {
+        const a1 = worldData.agents[i], a2 = worldData.agents[j];
+        const dist = Math.abs(a1.x - a2.x) + Math.abs(a1.y - a2.y);
+        if (dist <= proxRadius && a1.status !== 'offline' && a2.status !== 'offline') {
+          const x1 = a1.x * tileSize + tileSize / 2, y1 = a1.y * tileSize + tileSize / 2;
+          const x2 = a2.x * tileSize + tileSize / 2, y2 = a2.y * tileSize + tileSize / 2;
+          const alpha = Math.max(0.08, 0.25 - dist * 0.03);
+          ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+          ctx.lineWidth = 1;
+          ctx.setLineDash([3, 4]);
+          ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+          ctx.setLineDash([]);
+          // Proximity spark at midpoint
+          const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+          ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.6})`;
+          ctx.beginPath(); ctx.arc(mx, my, 2, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+
+    // 2. Status bubbles + idle animations per agent
+    const statusEmotes = {
+      'active': ['💻', '⌨️', '📝', '🔧', '💡', '📊'],
+      'idle': ['☕', '💭', '📖', '🎵'],
+      'offline': [],
+    };
+
+    for (const agent of (worldData.agents || [])) {
+      const ax = agent.x * tileSize + tileSize / 2;
+      const ay = agent.y * tileSize + tileSize / 2;
+
+      if (agent.status === 'active') {
+        // Thought bubble with activity emote
+        const emoteIdx = Math.abs(agent.x * 7 + agent.y * 13 + Math.floor(time / 8000)) % statusEmotes.active.length;
+        const emote = statusEmotes.active[emoteIdx];
+        const bubbleY = ay - 38;
+        // Bubble background
+        ctx.fillStyle = '#ffffffdd';
+        ctx.beginPath();
+        ctx.roundRect(ax + 8, bubbleY - 8, 20, 16, 4);
+        ctx.fill();
+        // Bubble tail
+        ctx.fillStyle = '#ffffffdd';
+        ctx.beginPath();
+        ctx.moveTo(ax + 10, bubbleY + 8);
+        ctx.lineTo(ax + 6, bubbleY + 12);
+        ctx.lineTo(ax + 14, bubbleY + 8);
+        ctx.fill();
+        // Emote
+        ctx.font = '10px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#000';
+        ctx.fillText(emote, ax + 18, bubbleY + 4);
+
+        // Active pulse ring
+        const pulse = 0.3 + Math.sin(time / 600) * 0.15;
+        ctx.strokeStyle = `rgba(34, 197, 94, ${pulse})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(ax, ay, 20 + Math.sin(time / 400) * 2, 0, Math.PI * 2); ctx.stroke();
+
+      } else if (agent.status === 'idle') {
+        // Zzz animation (floating z's)
+        const zAlpha = 0.3 + Math.sin(time / 1000) * 0.2;
+        ctx.fillStyle = `rgba(234, 179, 8, ${zAlpha})`;
+        ctx.font = 'bold 8px system-ui';
+        ctx.textAlign = 'left';
+        const zOffset = (time / 800) % 3;
+        ctx.fillText('z', ax + 12, ay - 30 - zOffset * 3);
+        ctx.fillStyle = `rgba(234, 179, 8, ${zAlpha * 0.7})`;
+        ctx.font = 'bold 6px system-ui';
+        ctx.fillText('z', ax + 16, ay - 34 - zOffset * 2);
+        ctx.fillStyle = `rgba(234, 179, 8, ${zAlpha * 0.4})`;
+        ctx.font = 'bold 5px system-ui';
+        ctx.fillText('z', ax + 19, ay - 37 - zOffset);
+
+        // Idle thought bubble (occasional)
+        if (Math.floor(time / 12000) % 3 === (Math.abs(agent.x + agent.y) % 3)) {
+          const emote = statusEmotes.idle[Math.abs(agent.x * 3 + agent.y * 5) % statusEmotes.idle.length];
+          ctx.fillStyle = '#ffffff99';
+          ctx.beginPath();
+          ctx.roundRect(ax + 8, ay - 42, 18, 14, 3);
+          ctx.fill();
+          ctx.font = '9px system-ui';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#000';
+          ctx.fillText(emote, ax + 17, ay - 33);
+        }
+
+      } else if (agent.status === 'offline') {
+        // Dim overlay
+        ctx.fillStyle = '#00000040';
+        ctx.beginPath(); ctx.arc(ax, ay, 16, 0, Math.PI * 2); ctx.fill();
+        // Offline indicator
+        ctx.fillStyle = '#666';
+        ctx.font = '7px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('AWAY', ax, ay + 26);
+      }
+    }
+
     // Info overlay
     ctx.fillStyle = '#00000080';
     ctx.fillRect(0, 0, canvas.width, 20);
@@ -1583,7 +1690,7 @@ window.WorldRenderer = {
     return OBJ_PROPS;
   },
 
-  // Start idle animation loop (agents sway slightly)
+  // Start idle animation loop (social behaviors + agent life)
   startIdleAnimation: function (canvasId) {
     const canvas = document.getElementById(canvasId);
     if (!canvas || canvas._idleAnimRunning) return;
@@ -1592,11 +1699,11 @@ window.WorldRenderer = {
     setInterval(() => {
       if (!canvas._worldData) return;
       frame++;
-      // Every 2 seconds, toggle idle frame for visual life
-      if (frame % 10 === 0) {
+      // Re-render every ~2s for social behavior animations (bubbles, proximity, zzz)
+      if (frame % 6 === 0) {
         canvas._idleFrame = (canvas._idleFrame || 0) === 0 ? 1 : 0;
         WorldRenderer.render(canvasId, canvas._worldData);
       }
-    }, 200);
+    }, 300);
   }
 };
