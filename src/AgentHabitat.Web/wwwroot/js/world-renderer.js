@@ -767,12 +767,16 @@ window.WorldRenderer = {
           WorldRenderer.render(canvasId, wd);
         }
 
+        const hovDoor = (wd.doors || []).find(d => d.x === tx && d.y === ty);
         const hovAgent = (wd.agents || []).find(a => a.x === tx && a.y === ty);
         const hovRoom = wd.rooms.find(r =>
           tx >= r.x && tx < r.x + r.width && ty >= r.y && ty < r.y + r.height
         );
 
-        if (hovAgent) {
+        if (hovDoor) {
+          canvas.title = `Door [${hovDoor.state}] — click to toggle · ${hovDoor.direction} · ${hovDoor.connectsTo || 'corridor'}`;
+          canvas.style.cursor = 'pointer';
+        } else if (hovAgent) {
           canvas.title = `${hovAgent.name || hovAgent.id} (${hovAgent.role || 'agent'}) — ${hovAgent.status}`;
           canvas.style.cursor = 'pointer';
         } else if (hovRoom) {
@@ -893,6 +897,14 @@ window.WorldRenderer = {
         const anyMoving = (wd.agents || []).some(a => a._moving);
         if (anyMoving) return;
 
+        // Check if a door was clicked — toggle state
+        const clickedDoor = (wd.doors || []).find(d => d.x === tx && d.y === ty);
+        if (clickedDoor) {
+          WorldRenderer.toggleDoor(canvasId, clickedDoor.id);
+          if (window._blazorDoorClickCallback) window._blazorDoorClickCallback(clickedDoor);
+          return;
+        }
+
         const clickedAgent = (wd.agents || []).find(a => a.x === tx && a.y === ty);
         if (clickedAgent) {
           canvas._selectedAgentId = clickedAgent.id;
@@ -979,7 +991,23 @@ window.WorldRenderer = {
     window._blazorAgentClickCallback = callback;
   },
 
-  // Movement prototype — move an agent toward a target tile
+  // Build door lookup map from world data (position → door object)
+  _buildDoorMap: function (wd) {
+    const map = new Map();
+    for (const door of (wd.doors || [])) {
+      map.set(`${door.x},${door.y}`, door);
+    }
+    return map;
+  },
+
+  // Check which room a tile belongs to (null if corridor/void)
+  _findRoom: function (x, y, rooms) {
+    return rooms.find(r =>
+      x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height
+    ) || null;
+  },
+
+  // Movement prototype — move an agent toward a target tile (door-aware)
   moveAgent: function (canvasId, agentId, targetX, targetY) {
     const canvas = document.getElementById(canvasId);
     if (!canvas || !canvas._worldData) return;
@@ -987,11 +1015,35 @@ window.WorldRenderer = {
     const agent = (wd.agents || []).find(a => a.id === agentId);
     if (!agent) return;
 
-    // Simple BFS pathfinding on walkable grid
+    // Door-aware BFS pathfinding
     const W = wd.width, H = wd.height;
+    const doorMap = this._buildDoorMap(wd);
+
     const isWalkable = (x, y) => {
       if (x < 0 || y < 0 || x >= W || y >= H) return false;
       return wd.tiles[y * W + x] > 0;
+    };
+
+    // Check if movement from (fx,fy) to (tx,ty) is allowed considering doors
+    const canTraverse = (fx, fy, tx, ty) => {
+      if (!isWalkable(tx, ty)) return false;
+
+      const fromRoom = this._findRoom(fx, fy, wd.rooms);
+      const toRoom = this._findRoom(tx, ty, wd.rooms);
+
+      // Same zone (both in same room or both in corridor) — always OK
+      if (fromRoom === toRoom) return true;
+      if (!fromRoom && !toRoom) return true; // corridor to corridor
+
+      // Crossing a room boundary — need a door
+      // Check the room-side tile for a door
+      const roomSideX = fromRoom ? fx : tx;
+      const roomSideY = fromRoom ? fy : ty;
+      const doorKey = `${roomSideX},${roomSideY}`;
+      const door = doorMap.get(doorKey);
+
+      if (!door) return false; // no door = no passage
+      return door.state === 'Open'; // only open doors allow traversal
     };
 
     const visited = new Set();
@@ -1005,14 +1057,28 @@ window.WorldRenderer = {
       for (const [dx, dy] of [[0,1],[0,-1],[1,0],[-1,0]]) {
         const nx = x + dx, ny = y + dy;
         const key = `${nx},${ny}`;
-        if (isWalkable(nx, ny) && !visited.has(key)) {
+        if (canTraverse(x, y, nx, ny) && !visited.has(key)) {
           visited.add(key);
           queue.push({ x: nx, y: ny, path: [...path, { x: nx, y: ny }] });
         }
       }
     }
 
-    if (!foundPath || foundPath.length === 0) return;
+    if (!foundPath || foundPath.length === 0) {
+      // Visual feedback: path blocked (red flash at destination)
+      const ts = canvas._tileSize;
+      const blockCtx = canvas.getContext('2d');
+      blockCtx.fillStyle = '#ef444460';
+      blockCtx.beginPath();
+      blockCtx.arc(targetX * ts + ts/2, targetY * ts + ts/2, 14, 0, Math.PI * 2);
+      blockCtx.fill();
+      blockCtx.fillStyle = '#ef4444';
+      blockCtx.font = 'bold 9px system-ui';
+      blockCtx.textAlign = 'center';
+      blockCtx.fillText('BLOCKED', targetX * ts + ts/2, targetY * ts + ts/2 + 20);
+      setTimeout(() => WorldRenderer.render(canvasId, wd), 1200);
+      return;
+    }
 
     // Set destination marker
     canvas._moveDestination = { x: targetX, y: targetY };
@@ -1276,6 +1342,36 @@ window.WorldRenderer = {
   getObjects: function (canvasId) {
     const canvas = document.getElementById(canvasId);
     return canvas?._worldData?.objects || [];
+  },
+
+  // Toggle door state: Open → Closed → Locked → Open
+  toggleDoor: function (canvasId, doorId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !canvas._worldData) return null;
+    const door = (canvas._worldData.doors || []).find(d => d.id === doorId);
+    if (!door) return null;
+    const cycle = { 'Open': 'Closed', 'Closed': 'Locked', 'Locked': 'Open' };
+    door.state = cycle[door.state] || 'Open';
+    WorldRenderer.render(canvasId, canvas._worldData);
+    return { id: door.id, state: door.state };
+  },
+
+  // Set specific door state
+  setDoorState: function (canvasId, doorId, state) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !canvas._worldData) return null;
+    const door = (canvas._worldData.doors || []).find(d => d.id === doorId);
+    if (!door) return null;
+    door.state = state;
+    WorldRenderer.render(canvasId, canvas._worldData);
+    return { id: door.id, state: door.state };
+  },
+
+  // Find door at tile position
+  findDoorAt: function (canvasId, tx, ty) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !canvas._worldData) return null;
+    return (canvas._worldData.doors || []).find(d => d.x === tx && d.y === ty) || null;
   },
 
   // Start idle animation loop (agents sway slightly)

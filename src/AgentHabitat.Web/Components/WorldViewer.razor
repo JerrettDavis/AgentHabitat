@@ -97,6 +97,26 @@
                     </div>
                 }
 
+                @if (_selectedRoomDoors.Length > 0)
+                {
+                    <div style="margin-bottom:var(--sp-3)">
+                        <div class="section-label">Doors</div>
+                        <div style="display:flex;flex-direction:column;gap:var(--sp-1)">
+                            @foreach (var door in _selectedRoomDoors)
+                            {
+                                <div style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-1) 0">
+                                    <span style="font:var(--text-caption);color:var(--text-secondary)">@door.Direction</span>
+                                    <span class="habitat-tag" style="cursor:pointer;background:@(door.State == "Open" ? "var(--accent-green)" : door.State == "Closed" ? "var(--accent-orange)" : "var(--accent-red)");color:#fff"
+                                          @onclick="() => ToggleDoor(door.Id)">
+                                        @door.State
+                                    </span>
+                                    <span style="font:var(--text-caption);color:var(--text-dim)">→ @(door.ConnectsTo ?? "corridor")</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
                 @if (_selectedRoomObjects.Length > 0)
                 {
                     <div>
@@ -219,7 +239,7 @@
 
     @if (_selectedRoom == null && _selectedAgent == null)
     {
-        <div class="habitat-hint">Click a room or agent to inspect · Right-click to move selected agent</div>
+        <div class="habitat-hint">Click a room or agent to inspect · Click doors to toggle state · Right-click to move selected agent</div>
     }
 </div>
 
@@ -239,6 +259,7 @@
     private AgentRenderData? _selectedAgent;
     private AgentRenderData[] _selectedRoomAgents = [];
     private ObjectRenderData[] _selectedRoomObjects = [];
+    private DoorRenderData[] _selectedRoomDoors = [];
     private DotNetObjectReference<WorldViewer>? _selfRef;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -333,12 +354,24 @@
             await JS.InvokeVoidAsync("WorldRenderer.render", "world-canvas", _renderData);
     }
 
+    private async Task ToggleDoor(string doorId)
+    {
+        await JS.InvokeVoidAsync("WorldRenderer.toggleDoor", "world-canvas", doorId);
+        // Refresh door states in panel
+        if (_selectedRoom != null && _renderData != null)
+        {
+            _selectedRoomDoors = _renderData.Doors.Where(d => d.RoomId == _selectedRoom.Id).ToArray();
+        }
+        StateHasChanged();
+    }
+
     private void ClearSelection()
     {
         _selectedRoom = null;
         _selectedAgent = null;
         _selectedRoomAgents = [];
         _selectedRoomObjects = [];
+        _selectedRoomDoors = [];
         StateHasChanged();
     }
 
