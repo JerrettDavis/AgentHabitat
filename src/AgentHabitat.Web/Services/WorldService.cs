@@ -7,6 +7,13 @@ public class WorldService
 {
     private readonly DeterministicWorldGenerator _generator = new();
 
+    // Persistent actor→office ownership map (survives across renders)
+    private readonly Dictionary<string, string> _ownershipMap = new();
+
+    public IReadOnlyDictionary<string, string> OwnershipMap => _ownershipMap;
+
+    public void ClearOwnership() => _ownershipMap.Clear();
+
     public static readonly Dictionary<string, WorldPreset> Presets = new()
     {
         ["startup-office"] = new("Startup Office", "startup-hq", "retro-office",
@@ -49,6 +56,22 @@ public class WorldService
         );
 
         return _generator.GenerateWorld(seed, options);
+    }
+
+    // Dynamically add a new agent to an existing world — returns updated render data
+    public WorldRenderData? AddAgentToWorld(WorldGenerationResult existingWorld, AgentDefinition newAgent,
+        string color = "#888888")
+    {
+        if (_ownershipMap.ContainsKey(newAgent.Id))
+            return null; // Already has an office
+
+        // Create a new agent list including the newcomer
+        var existingAgents = (existingWorld.Options.Agents ?? DefaultAgents).ToList();
+        existingAgents.Add(newAgent);
+
+        // Regenerate with expanded agent list (deterministic — same seed + agents = same layout)
+        var result = Generate(existingWorld.Seed, existingWorld.Options.StyleProfile, existingAgents);
+        return ToRenderData(result);
     }
 
     public WorldGenerationResult GenerateFromPreset(string presetId)
@@ -324,6 +347,9 @@ public class WorldService
             var color = agentColors.GetValueOrDefault(def.Id, defaultColor);
             agents.Add(new AgentRenderData(def.Id, def.Name, color, def.Role,
                 office.CenterX, office.CenterY, i < 2 ? "active" : i < 3 ? "idle" : "offline"));
+
+            // Record ownership mapping
+            _ownershipMap[def.Id] = office.Id;
         }
 
         var doors = world.Doors.Select(d => new DoorRenderData(
