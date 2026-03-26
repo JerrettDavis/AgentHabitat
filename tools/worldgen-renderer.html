@@ -146,12 +146,16 @@ function overlap(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 function carveH(x1, x2, y, w, opts) {
+  const cw = opts.corridorWidth || 2;
   for (let x = Math.min(x1,x2); x <= Math.max(x1,x2); x++)
-    if (x >= 0 && x < opts.width && y >= 0 && y < opts.height) w[x][y] = true;
+    for (let dy = 0; dy < cw; dy++)
+      if (x >= 0 && x < opts.width && y+dy >= 0 && y+dy < opts.height) w[x][y+dy] = true;
 }
 function carveV(y1, y2, x, w, opts) {
+  const cw = opts.corridorWidth || 2;
   for (let y = Math.min(y1,y2); y <= Math.max(y1,y2); y++)
-    if (x >= 0 && x < opts.width && y >= 0 && y < opts.height) w[x][y] = true;
+    for (let dx = 0; dx < cw; dx++)
+      if (x+dx >= 0 && x+dx < opts.width && y >= 0 && y < opts.height) w[x+dx][y] = true;
 }
 
 // --- Style Palettes ---
@@ -184,7 +188,8 @@ function render(canvas, world) {
   const tileSize = 14;
   const W = world.opts.width, H = world.opts.height;
   const pad = 24; // top padding for title
-  canvas.width = W * tileSize;
+  const legendW = 160; // sidebar width
+  canvas.width = W * tileSize + legendW;
   canvas.height = H * tileSize + pad;
   const ctx = canvas.getContext('2d');
   const oY = pad; // offset for content
@@ -376,6 +381,78 @@ function render(canvas, world) {
   ctx.fillStyle = '#ffffff90';
   ctx.font = '10px system-ui';
   ctx.fillText(`seed: ${world.seed}  |  ${world.opts.style}  |  ${world.rooms.length} rooms  |  ${world.objects.length} objects`, 110, pad/2);
+
+  // --- Legend Panel ---
+  const lx = W * tileSize; // legend x start
+  ctx.fillStyle = pal.bg;
+  ctx.fillRect(lx, 0, legendW, canvas.height);
+  ctx.strokeStyle = pal.wall;
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(lx, 0); ctx.lineTo(lx, canvas.height); ctx.stroke();
+
+  let ly = pad + 12;
+  ctx.fillStyle = pal.label;
+  ctx.font = 'bold 11px system-ui';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('Agents', lx + 10, ly);
+  ly += 18;
+
+  for (const agent of (world.agents || [])) {
+    // Agent dot
+    ctx.beginPath();
+    ctx.arc(lx + 18, ly + 6, 5, 0, Math.PI * 2);
+    ctx.fillStyle = agent.color;
+    ctx.fill();
+    // Status dot
+    const sc = agent.status === 'active' ? '#22c55e' : agent.status === 'idle' ? '#eab308' : '#666';
+    ctx.beginPath();
+    ctx.arc(lx + 24, ly + 2, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = sc;
+    ctx.fill();
+    // Name + role
+    ctx.fillStyle = pal.label;
+    ctx.font = 'bold 9px system-ui';
+    ctx.fillText(agent.name, lx + 32, ly);
+    ctx.fillStyle = pal.label + '80';
+    ctx.font = '8px system-ui';
+    ctx.fillText(agent.role + ' · ' + agent.status, lx + 32, ly + 11);
+    ly += 28;
+  }
+
+  ly += 8;
+  ctx.fillStyle = pal.label;
+  ctx.font = 'bold 11px system-ui';
+  ctx.fillText('Rooms', lx + 10, ly);
+  ly += 18;
+
+  for (const r of world.rooms) {
+    const rc = pal.rooms[r.archetype] || pal.floor;
+    ctx.fillStyle = rc;
+    ctx.fillRect(lx + 12, ly + 1, 10, 10);
+    ctx.strokeStyle = pal.wall;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(lx + 12, ly + 1, 10, 10);
+    ctx.fillStyle = pal.label + 'cc';
+    ctx.font = '8px system-ui';
+    ctx.fillText(r.archetype, lx + 28, ly + 2);
+    ctx.fillStyle = pal.label + '60';
+    ctx.font = '7px monospace';
+    ctx.fillText(r.id, lx + 28, ly + 11);
+    ly += 22;
+  }
+
+  ly += 8;
+  ctx.fillStyle = pal.label;
+  ctx.font = 'bold 11px system-ui';
+  ctx.fillText('Stats', lx + 10, ly);
+  ly += 16;
+  ctx.fillStyle = pal.label + 'aa';
+  ctx.font = '9px system-ui';
+  ctx.fillText(`Rooms: ${world.rooms.length}`, lx + 12, ly); ly += 14;
+  ctx.fillText(`Objects: ${world.objects.length}`, lx + 12, ly); ly += 14;
+  ctx.fillText(`Agents: ${(world.agents||[]).length}`, lx + 12, ly); ly += 14;
+  ctx.fillText(`Grid: ${W}×${H}`, lx + 12, ly);
 }
 
 // --- UI ---
