@@ -1,0 +1,109 @@
+{
+  "timestamp": "2026-03-26T16:53:19.898Z",
+  "note": "C# and JS use different RNG. Blazor uses C# (authoritative). JS standalone is visual reference only.",
+  "jsLayouts": {
+    "alpha-001": [
+      {
+        "id": "room-1",
+        "archetype": "CodingRoom",
+        "x": 19,
+        "y": 3,
+        "w": 9,
+        "h": 10
+      },
+      {
+        "id": "room-2",
+        "archetype": "ReviewRoom",
+        "x": 5,
+        "y": 6,
+        "w": 8,
+        "h": 5
+      },
+      {
+        "id": "room-3",
+        "archetype": "Library",
+        "x": 9,
+        "y": 14,
+        "w": 7,
+        "h": 8
+      },
+      {
+        "id": "room-4",
+        "archetype": "Lounge",
+        "x": 21,
+        "y": 16,
+        "w": 8,
+        "h": 6
+      },
+      {
+        "id": "room-5",
+        "archetype": "Lounge",
+        "x": 1,
+        "y": 14,
+        "w": 5,
+        "h": 5
+      }
+    ],
+    "alpha-002": [
+      {
+        "id": "room-1",
+        "archetype": "CodingRoom",
+        "x": 16,
+        "y": 15,
+        "w": 13,
+        "h": 6
+      },
+      {
+        "id": "room-2",
+        "archetype": "ReviewRoom",
+        "x": 1,
+        "y": 1,
+        "w": 12,
+        "h": 7
+      },
+      {
+        "id": "room-3",
+        "archetype": "Library",
+        "x": 4,
+        "y": 12,
+        "w": 7,
+        "h": 9
+      },
+      {
+        "id": "room-4",
+        "archetype": "Lounge",
+        "x": 17,
+        "y": 1,
+        "w": 10,
+        "h": 5
+      }
+    ],
+    "alpha-003": [
+      {
+        "id": "room-1",
+        "archetype": "CodingRoom",
+        "x": 6,
+        "y": 6,
+        "w": 6,
+        "h": 10
+      },
+      {
+        "id": "room-2",
+        "archetype": "ReviewRoom",
+        "x": 18,
+        "y": 8,
+        "w": 11,
+        "h": 10
+      },
+      {
+        "id": "room-3",
+        "archetype": "Library",
+        "x": 16,
+        "y": 1,
+        "w": 5,
+        "h": 4
+      }
+    ]
+  },
+  "csharpDeterminism": "22/22 tests pass (same seed = same topology hash across runs)"
+}

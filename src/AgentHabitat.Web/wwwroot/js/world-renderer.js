@@ -1,7 +1,15 @@
 /**
  * Canvas-based world renderer for Blazor JS interop.
  * Receives WorldRenderData from C# and draws to a canvas element.
+ * Includes theme-specific lighting and interactive room click.
  */
+
+// Theme lighting tints
+const THEME_TINTS = {
+  'retro-office': { r: 1.1, g: 1.0, b: 0.9 },
+  'forest-lab':   { r: 0.9, g: 1.1, b: 0.95 },
+  'neon-hq':      { r: 0.9, g: 0.9, b: 1.15 },
+};
 
 const PALETTES = {
   'retro-office': {
