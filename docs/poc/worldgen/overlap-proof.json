@@ -1,0 +1,88 @@
+{
+  "results": [
+    {
+      "seed": "alpha-001",
+      "style": "retro-office",
+      "padding_tiles": 3,
+      "room_count": 4,
+      "overlap_count": 1,
+      "all_reachable": true,
+      "in_bounds": true
+    },
+    {
+      "seed": "alpha-001",
+      "style": "forest-lab",
+      "padding_tiles": 3,
+      "room_count": 5,
+      "overlap_count": 1,
+      "all_reachable": true,
+      "in_bounds": true
+    },
+    {
+      "seed": "alpha-001",
+      "style": "neon-hq",
+      "padding_tiles": 3,
+      "room_count": 5,
+      "overlap_count": 1,
+      "all_reachable": true,
+      "in_bounds": true
+    },
+    {
+      "seed": "alpha-002",
+      "style": "retro-office",
+      "padding_tiles": 3,
+      "room_count": 5,
+      "overlap_count": 3,
+      "all_reachable": true,
+      "in_bounds": true
+    },
+    {
+      "seed": "alpha-002",
+      "style": "forest-lab",
+      "padding_tiles": 3,
+      "room_count": 4,
+      "overlap_count": 1,
+      "all_reachable": true,
+      "in_bounds": true
+    },
+    {
+      "seed": "alpha-002",
+      "style": "neon-hq",
+      "padding_tiles": 3,
+      "room_count": 4,
+      "overlap_count": 1,
+      "all_reachable": true,
+      "in_bounds": true
+    },
+    {
+      "seed": "alpha-003",
+      "style": "retro-office",
+      "padding_tiles": 3,
+      "room_count": 4,
+      "overlap_count": 2,
+      "all_reachable": true,
+      "in_bounds": true
+    },
+    {
+      "seed": "alpha-003",
+      "style": "forest-lab",
+      "padding_tiles": 3,
+      "room_count": 5,
+      "overlap_count": 2,
+      "all_reachable": true,
+      "in_bounds": true
+    },
+    {
+      "seed": "alpha-003",
+      "style": "neon-hq",
+      "padding_tiles": 3,
+      "room_count": 5,
+      "overlap_count": 1,
+      "all_reachable": true,
+      "in_bounds": true
+    }
+  ],
+  "allPass": false,
+  "padding": 3,
+  "timestamp": "2026-03-26T13:11:51.684Z"
+}

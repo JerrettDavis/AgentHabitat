@@ -67,34 +67,42 @@ function generateWorld(seed, opts) {
   const rooms = [];
   let id = 1;
   for (const arch of ARCHETYPES) {
-    const w = rng.next(8, 14);
-    const h = rng.next(6, 11);
-    let placed, tries = 0;
-    do {
-      const x = rng.next(1, opts.width - w - 1);
-      const y = rng.next(1, opts.height - h - 1);
-      placed = { id: `room-${id}`, archetype: arch, x, y, w, h, cx: x + Math.floor(w/2), cy: y + Math.floor(h/2) };
-      tries++;
-      if (tries > 300) break;
-    } while (rooms.some(r => overlap(r, placed)));
-    rooms.push(placed);
-    id++;
+    let placed = null, tries = 0;
+    // Try smaller rooms if large ones don't fit
+    for (let sizeAttempt = 0; sizeAttempt < 3 && !placed; sizeAttempt++) {
+      const wMax = Math.max(6, 14 - sizeAttempt * 2);
+      const hMax = Math.max(5, 11 - sizeAttempt * 2);
+      const w = rng.next(6, wMax);
+      const h = rng.next(5, hMax);
+      for (let t = 0; t < 500; t++) {
+        const x = rng.next(1, opts.width - w - 1);
+        const y = rng.next(1, opts.height - h - 1);
+        const candidate = { id: `room-${id}`, archetype: arch, x, y, w, h, cx: x + Math.floor(w/2), cy: y + Math.floor(h/2) };
+        if (!rooms.some(r => overlap(r, candidate))) {
+          placed = candidate;
+          break;
+        }
+      }
+    }
+    if (placed) { rooms.push(placed); id++; }
   }
-  // Add bonus rooms
-  const bonusCount = rng.next(2, 5);
+  // Add bonus rooms (only if they fit cleanly)
+  const bonusCount = rng.next(1, 3);
   for (let i = 0; i < bonusCount; i++) {
     const arch = ARCHETYPES[rng.next(0, ARCHETYPES.length)];
-    const w = rng.next(6, 10);
-    const h = rng.next(5, 8);
-    let placed, tries = 0;
-    do {
+    const w = rng.next(5, 8);
+    const h = rng.next(4, 7);
+    let placed = null;
+    for (let t = 0; t < 300; t++) {
       const x = rng.next(1, opts.width - w - 1);
       const y = rng.next(1, opts.height - h - 1);
-      placed = { id: `room-${id}`, archetype: arch, x, y, w, h, cx: x + Math.floor(w/2), cy: y + Math.floor(h/2) };
-      tries++;
-      if (tries > 200) break;
-    } while (rooms.some(r => overlap(r, placed)));
-    if (tries <= 200) { rooms.push(placed); id++; }
+      const candidate = { id: `room-${id}`, archetype: arch, x, y, w, h, cx: x + Math.floor(w/2), cy: y + Math.floor(h/2) };
+      if (!rooms.some(r => overlap(r, candidate))) {
+        placed = candidate;
+        break;
+      }
+    }
+    if (placed) { rooms.push(placed); id++; }
   }
 
   const walkable = Array.from({length: opts.width}, () => Array(opts.height).fill(false));
