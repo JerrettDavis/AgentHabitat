@@ -8,7 +8,7 @@ namespace AgentHabitat.Core.Tests;
 public class WorldGenerationTests
 {
     private readonly DeterministicWorldGenerator _gen = new();
-    private readonly WorldGenerationOptions _defaultOpts = new(64, 48, 1, "retro-office", "v1");
+    private readonly WorldGenerationOptions _defaultOpts = new(64, 48, 1, WorldStyleProfiles.RetroOffice, "v1");
 
     [Fact]
     public void SameSeedAndOptions_ProduceSameTopologyHash()
@@ -26,6 +26,38 @@ public class WorldGenerationTests
         var b = _gen.GenerateWorld("alpha-002", _defaultOpts);
 
         Assert.NotEqual(a.TopologyHash, b.TopologyHash);
+    }
+
+    [Fact]
+    public void SameSeedAndStyle_ProduceSameHash()
+    {
+        var opts = _defaultOpts with { StyleProfile = WorldStyleProfiles.CozyTech };
+        var a = _gen.GenerateWorld("alpha-001", opts);
+        var b = _gen.GenerateWorld("alpha-001", opts);
+        Assert.Equal(a.TopologyHash, b.TopologyHash);
+    }
+
+    [Fact]
+    public void SameSeedDifferentStyle_ProduceDifferentHash()
+    {
+        var retro = _gen.GenerateWorld("alpha-001", _defaultOpts with { StyleProfile = WorldStyleProfiles.RetroOffice });
+        var cozy = _gen.GenerateWorld("alpha-001", _defaultOpts with { StyleProfile = WorldStyleProfiles.CozyTech });
+        var neo = _gen.GenerateWorld("alpha-001", _defaultOpts with { StyleProfile = WorldStyleProfiles.NeoIndustrial });
+
+        Assert.NotEqual(retro.TopologyHash, cozy.TopologyHash);
+        Assert.NotEqual(retro.TopologyHash, neo.TopologyHash);
+        Assert.NotEqual(cozy.TopologyHash, neo.TopologyHash);
+    }
+
+    [Theory]
+    [InlineData("retro-office")]
+    [InlineData("cozy-tech")]
+    [InlineData("neo-industrial")]
+    public void AllStyles_PassValidationInvariants(string style)
+    {
+        var world = _gen.GenerateWorld("alpha-002", _defaultOpts with { StyleProfile = style });
+        var errors = WorldValidation.Validate(world);
+        Assert.Empty(errors);
     }
 
     [Fact]
@@ -192,5 +224,37 @@ public class WorldGenerationTests
 
         Assert.True(File.Exists(outPath));
         Assert.True(rows.Count == 5);
+    }
+
+    [Fact]
+    public void SeedStyleMatrix_WritesStyleHashMatrix_ForAlphaSeedsAcrossAllStyles()
+    {
+        var seeds = new[] { "alpha-001", "alpha-002", "alpha-003" };
+        var styles = WorldStyleProfiles.Supported;
+
+        var rows =
+            (from seed in seeds
+             from style in styles
+             let world = _gen.GenerateWorld(seed, _defaultOpts with { StyleProfile = style })
+             select new
+             {
+                 seed,
+                 style,
+                 topologyHash = world.TopologyHash,
+                 width = world.Width,
+                 height = world.Height,
+                 timestamp = DateTimeOffset.UtcNow.ToString("O")
+             }).ToList();
+
+        var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+        var outDir = Path.Combine(repoRoot, "docs", "poc", "worldgen");
+        Directory.CreateDirectory(outDir);
+        var outPath = Path.Combine(outDir, "style-hash-matrix.json");
+
+        var json = JsonSerializer.Serialize(rows, new JsonSerializerOptions { WriteIndented = true });
+        File.WriteAllText(outPath, json);
+
+        Assert.True(File.Exists(outPath));
+        Assert.Equal(seeds.Length * styles.Count, rows.Count);
     }
 }

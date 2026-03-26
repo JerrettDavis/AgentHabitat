@@ -8,11 +8,25 @@ public enum RoomArchetype
     Lounge
 }
 
+public static class WorldStyleProfiles
+{
+    public const string RetroOffice = "retro-office";
+    public const string CozyTech = "cozy-tech";
+    public const string NeoIndustrial = "neo-industrial";
+
+    public static readonly IReadOnlyList<string> Supported =
+    [
+        RetroOffice,
+        CozyTech,
+        NeoIndustrial
+    ];
+}
+
 public sealed record WorldGenerationOptions(
     int Width = 64,
     int Height = 48,
     int CorridorWidth = 1,
-    string StyleProfile = "retro-office",
+    string StyleProfile = WorldStyleProfiles.RetroOffice,
     string ContentPackVersion = "v1"
 );
 
