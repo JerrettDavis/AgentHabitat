@@ -109,18 +109,52 @@ function generateWorld(seed, opts) {
     carveV(a.cy, b.cy, b.cx, walkable, opts);
   }
 
-  // Place objects
+  // Place objects with archetype-specific signature layouts
   const objects = [];
   for (const r of rooms) {
-    const count = rng.next(2, 6);
-    for (let i = 0; i < count; i++) {
-      const ox = rng.next(r.x + 1, r.x + r.w - 1);
-      const oy = rng.next(r.y + 1, r.y + r.h - 1);
-      const type = r.archetype === 'CodingRoom' ? ['desk','monitor','chair'][rng.next(0,3)]
-                 : r.archetype === 'ReviewRoom' ? ['whiteboard','table','chair'][rng.next(0,3)]
-                 : r.archetype === 'Library' ? ['bookshelf','lamp','plant'][rng.next(0,3)]
-                 : ['couch','plant','coffee-table'][rng.next(0,3)];
-      objects.push({ x: ox, y: oy, type, room: r.id });
+    // Signature props per archetype (placed in predictable positions)
+    if (r.archetype === 'CodingRoom') {
+      // Desk bank with monitors — signature: rows of workstations
+      const deskRows = Math.min(3, Math.floor((r.h - 3) / 2));
+      for (let row = 0; row < deskRows; row++) {
+        const dy = r.y + 2 + row * 2;
+        objects.push({ x: r.x + 2, y: dy, type: 'desk', room: r.id });
+        objects.push({ x: r.x + 3, y: dy, type: 'monitor', room: r.id });
+        if (r.w > 7) {
+          objects.push({ x: r.x + r.w - 4, y: dy, type: 'desk', room: r.id });
+          objects.push({ x: r.x + r.w - 3, y: dy, type: 'monitor', room: r.id });
+        }
+        objects.push({ x: r.x + 4, y: dy, type: 'chair', room: r.id });
+      }
+      // Corner plant
+      objects.push({ x: r.x + r.w - 2, y: r.y + r.h - 2, type: 'plant', room: r.id });
+    } else if (r.archetype === 'ReviewRoom') {
+      // Whiteboard focal + seating arc
+      objects.push({ x: r.x + Math.floor(r.w / 2), y: r.y + 1, type: 'whiteboard', room: r.id });
+      objects.push({ x: r.x + Math.floor(r.w / 2) - 1, y: r.y + 1, type: 'whiteboard', room: r.id });
+      // Chairs facing board
+      for (let i = 0; i < Math.min(4, r.w - 4); i++) {
+        objects.push({ x: r.x + 2 + i, y: r.y + 3, type: 'chair', room: r.id });
+      }
+      objects.push({ x: r.x + 1, y: r.y + r.h - 2, type: 'plant', room: r.id });
+    } else if (r.archetype === 'Library') {
+      // Shelves along walls
+      for (let i = 0; i < Math.min(3, Math.floor(r.h / 3)); i++) {
+        objects.push({ x: r.x + 1, y: r.y + 1 + i * 3, type: 'bookshelf', room: r.id });
+        if (r.w > 6) objects.push({ x: r.x + r.w - 2, y: r.y + 1 + i * 3, type: 'bookshelf', room: r.id });
+      }
+      // Reading nook
+      objects.push({ x: r.x + Math.floor(r.w / 2), y: r.y + Math.floor(r.h / 2), type: 'chair', room: r.id });
+      objects.push({ x: r.x + Math.floor(r.w / 2) + 1, y: r.y + Math.floor(r.h / 2), type: 'lamp', room: r.id });
+      objects.push({ x: r.x + r.w - 2, y: r.y + r.h - 2, type: 'plant', room: r.id });
+    } else {
+      // Lounge — couch cluster + coffee table + plants
+      objects.push({ x: r.x + 2, y: r.y + 2, type: 'couch', room: r.id });
+      if (r.w > 6) objects.push({ x: r.x + 4, y: r.y + 2, type: 'couch', room: r.id });
+      objects.push({ x: r.x + 3, y: r.y + 4, type: 'coffee-table', room: r.id });
+      objects.push({ x: r.x + 1, y: r.y + 1, type: 'plant', room: r.id });
+      objects.push({ x: r.x + r.w - 2, y: r.y + 1, type: 'plant', room: r.id });
+      objects.push({ x: r.x + r.w - 2, y: r.y + r.h - 2, type: 'lamp', room: r.id });
     }
   }
 
