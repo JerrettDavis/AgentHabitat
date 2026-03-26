@@ -103,27 +103,52 @@ window.WorldRenderer = {
       }
     }
 
-    // Room borders
+    // Room drop shadows (drawn first, behind everything)
+    for (const room of worldData.rooms) {
+      const rx = room.x * tileSize, ry = room.y * tileSize;
+      const rw = room.width * tileSize, rh = room.height * tileSize;
+      ctx.fillStyle = '#00000040';
+      ctx.fillRect(rx + 5, ry + 5, rw, rh);
+    }
+
+    // Room borders (strong walls with inner highlight)
     for (const room of worldData.rooms) {
       const rx = room.x * tileSize, ry = room.y * tileSize;
       const rw = room.width * tileSize, rh = room.height * tileSize;
 
+      // Outer black wall
       ctx.strokeStyle = '#000';
       ctx.lineWidth = 3;
       ctx.strokeRect(rx + 1, ry + 1, rw - 2, rh - 2);
+      // Inner wall color
       ctx.strokeStyle = pal.wall;
       ctx.lineWidth = 2;
       ctx.strokeRect(rx + 3, ry + 3, rw - 6, rh - 6);
+      // Inner accent glow
+      ctx.strokeStyle = pal.accent + '15';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(rx + 5, ry + 5, rw - 10, rh - 10);
 
-      // Label
-      ctx.fillStyle = pal.label;
+      // Corner accents
+      const cs = 5;
+      ctx.fillStyle = pal.accent + '40';
+      ctx.fillRect(rx + 2, ry + 2, cs, cs);
+      ctx.fillRect(rx + rw - cs - 2, ry + 2, cs, cs);
+      ctx.fillRect(rx + 2, ry + rh - cs - 2, cs, cs);
+      ctx.fillRect(rx + rw - cs - 2, ry + rh - cs - 2, cs, cs);
+
+      // Label with background pill
       ctx.font = 'bold 12px system-ui';
       ctx.textAlign = 'center';
-      ctx.fillText(
-        room.archetype.replace('Room', ' Room'),
-        rx + rw / 2,
-        ry + 16
-      );
+      const labelText = room.archetype.replace('Room', ' Room');
+      const tm = ctx.measureText(labelText);
+      const lx = rx + rw / 2, ly = ry + 14;
+      ctx.fillStyle = '#00000070';
+      ctx.beginPath();
+      ctx.roundRect(lx - tm.width / 2 - 6, ly - 10, tm.width + 12, 18, 4);
+      ctx.fill();
+      ctx.fillStyle = pal.label;
+      ctx.fillText(labelText, lx, ly + 2);
     }
 
     // Corridor edges
