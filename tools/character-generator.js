@@ -116,45 +116,97 @@ export function generateCharacter(config, direction = 'front', frame = 0) {
     aE(cx - 7, 8, hair.sideRx, hair.sideRy, hcD, 7);
     aE(cx + 7, 8, hair.sideRx, hair.sideRy, hcD, 7);
 
-    // --- HEAD ---
-    aE(cx, 9, 5, 5, skin.base, 8);
-    aE(cx, 7, 4, 2, skin.highlight, 8.8);
-    aE(cx, 12, 4, 2, skin.shadow, 7.5);
-    aE(cx - 4, 10, 1, 1, skin.blush, 8.2);
-    aE(cx + 4, 10, 1, 1, skin.blush, 8.2);
+    // --- HEAD (precise pixel placement for clean face) ---
+    // Face outline — rounded rectangle, not ellipse
+    //   Row 6:     ..xxxx..   (forehead top, 4px wide)
+    //   Row 7:    .xxxxxx.   (forehead, 6px)
+    //   Row 8-11:  xxxxxxxx   (full face, 8px)
+    //   Row 12:   .xxxxxx.   (jaw taper)
+    //   Row 13:    ..xxxx..   (chin)
+    const faceRows = {
+      6:  [cx-2, cx+2],  // 4px
+      7:  [cx-3, cx+3],  // 6px
+      8:  [cx-4, cx+4],  // 8px
+      9:  [cx-4, cx+4],
+      10: [cx-4, cx+4],
+      11: [cx-4, cx+4],
+      12: [cx-3, cx+3],  // jaw taper
+      13: [cx-2, cx+2],  // chin
+    };
+    for (const [row, [l, r]] of Object.entries(faceRows)) {
+      const y = parseInt(row);
+      for (let x = l; x <= r; x++) {
+        const isEdge = (x === l || x === r);
+        const isTop = (y <= 7);
+        const isBottom = (y >= 12);
+        const col = isTop ? skin.highlight : isBottom ? skin.shadow : isEdge ? skin.shadow : skin.base;
+        const d = isEdge ? 7.5 : 8;
+        ap(x, y, col, d);
+      }
+    }
+    // Cheek blush (single pixels, precise)
+    ap(cx - 3, 10, skin.blush, 8.1);
+    ap(cx + 3, 10, skin.blush, 8.1);
 
-    // --- EYES ---
-    aE(cx - 3, 9, 2, 2, '#fff', 9);
-    aE(cx + 3, 9, 2, 2, '#fff', 9);
-    aE(cx - 3, 9, 1, 2, config.eyeColor, 9.3);
-    aE(cx + 3, 9, 1, 2, config.eyeColor, 9.3);
-    ap(cx - 3, 10, '#112', 9.8);
-    ap(cx + 3, 10, '#112', 9.8);
-    ap(cx - 2, 8, '#fff', 10);
-    ap(cx + 2, 8, '#fff', 10);
+    // --- EYES (precise, 3x2 each, clear definition) ---
+    // Left eye: 3 wide × 2 tall at (cx-4, 8)
+    ap(cx-4, 8, '#fff', 9);  ap(cx-3, 8, '#fff', 9);  ap(cx-2, 8, '#fff', 9);
+    ap(cx-4, 9, '#fff', 9);  ap(cx-3, 9, config.eyeColor, 9.3); ap(cx-2, 9, config.eyeColor, 9.3);
+    ap(cx-3, 9, '#111', 9.6); // pupil (on top of iris)
+    ap(cx-4, 8, '#fff', 10);  // sparkle top-left
 
-    // --- EYEBROWS ---
-    ap(cx - 4, 6, hcD, 9.5); ap(cx - 3, 6, hcD, 9.5);
-    ap(cx + 3, 6, hcD, 9.5); ap(cx + 4, 6, hcD, 9.5);
+    // Right eye: 3 wide × 2 tall at (cx+2, 8)
+    ap(cx+2, 8, '#fff', 9);  ap(cx+3, 8, '#fff', 9);  ap(cx+4, 8, '#fff', 9);
+    ap(cx+2, 9, config.eyeColor, 9.3); ap(cx+3, 9, config.eyeColor, 9.3); ap(cx+4, 9, '#fff', 9);
+    ap(cx+3, 9, '#111', 9.6); // pupil
+    ap(cx+4, 8, '#fff', 10);  // sparkle top-right
 
-    // --- NOSE ---
-    ap(cx, 10, skin.shadow, 8.8);
-    ap(cx, 11, skin.highlight, 9);
+    // --- EYEBROWS (2px each, slight arch) ---
+    ap(cx-4, 7, hcD, 9.5); ap(cx-3, 7, hcD, 9.5);
+    ap(cx+3, 7, hcD, 9.5); ap(cx+4, 7, hcD, 9.5);
 
-    // --- MOUTH ---
-    ap(cx - 1, 12, '#c08060', 8.2);
-    ap(cx, 12, '#d09070', 8.3);
-    ap(cx + 1, 12, '#c08060', 8.2);
+    // --- NOSE (1px wide, 2px tall, centered) ---
+    ap(cx, 10, skin.shadow, 8.5);
+    ap(cx, 11, skin.base, 8.2);
 
-    // --- GLASSES (if accessory) ---
+    // --- MOUTH (3px wide, clear shape) ---
+    ap(cx-1, 12, '#b06848', 8.3);
+    ap(cx,   12, '#c87858', 8.4);
+    ap(cx+1, 12, '#b06848', 8.3);
+
+    // --- GLASSES (occlusion-aware — drawn over face, reserves pixels) ---
     if (config.accessory === 'glasses') {
-      aR(cx - 5, 8, 3, 3, '#333', 9.5); aR(cx + 3, 8, 3, 3, '#333', 9.5);
-      aR(cx - 4, 9, 1, 1, '#8cf', 9.8); aR(cx + 4, 9, 1, 1, '#8cf', 9.8);
-      aR(cx - 1, 9, 3, 1, '#333', 9.3); // bridge
+      // Frame outline
+      ap(cx-5, 8, '#222', 10); ap(cx-5, 9, '#222', 10); ap(cx-5, 10, '#222', 10);
+      ap(cx-1, 8, '#222', 10); ap(cx-1, 9, '#222', 10); ap(cx-1, 10, '#222', 10);
+      ap(cx-4, 8, '#222', 10); ap(cx-2, 8, '#222', 10); // top
+      ap(cx-4, 10, '#222', 10); ap(cx-2, 10, '#222', 10); // bottom
+      // Right lens
+      ap(cx+1, 8, '#222', 10); ap(cx+1, 9, '#222', 10); ap(cx+1, 10, '#222', 10);
+      ap(cx+5, 8, '#222', 10); ap(cx+5, 9, '#222', 10); ap(cx+5, 10, '#222', 10);
+      ap(cx+2, 8, '#222', 10); ap(cx+4, 8, '#222', 10);
+      ap(cx+2, 10, '#222', 10); ap(cx+4, 10, '#222', 10);
+      // Bridge
+      ap(cx, 9, '#222', 10);
+      // Lens tint
+      ap(cx-4, 9, '#88bbdd', 9.8); ap(cx-3, 9, '#88bbdd', 9.8);
+      ap(cx+3, 9, '#88bbdd', 9.8); ap(cx+4, 9, '#88bbdd', 9.8);
+    }
+
+    // --- HEADSET (if accessory) ---
+    if (config.accessory === 'headset') {
+      // Headband arc over hair
+      ap(cx-6, 5, '#333', 10); ap(cx-6, 6, '#333', 10); ap(cx-6, 7, '#333', 10);
+      ap(cx-6, 8, '#444', 10); ap(cx-6, 9, '#555', 10.5); // earpiece
+      ap(cx-7, 8, '#555', 10); ap(cx-7, 9, '#666', 10.5);
+      // Mic arm
+      ap(cx-7, 10, '#444', 9); ap(cx-7, 11, '#444', 9); ap(cx-6, 12, '#555', 9.5);
     }
 
     // --- NECK ---
-    aR(cx - 2, 14, 4, 1, skin.shadow, 5.5);
+    ap(cx-1, 14, skin.shadow, 5.5);
+    ap(cx, 14, skin.base, 5.5);
+    ap(cx+1, 14, skin.shadow, 5.5);
 
     // --- BODY ---
     aE(cx, 19, bodyW, 6, ocM, 5);
