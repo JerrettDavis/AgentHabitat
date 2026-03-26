@@ -441,5 +441,71 @@ window.WorldRenderer = {
   // Register Blazor callback for room clicks
   onRoomClick: function (callback) {
     window._blazorRoomClickCallback = callback;
+  },
+
+  // Movement prototype — move an agent toward a target tile
+  moveAgent: function (canvasId, agentId, targetX, targetY) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !canvas._worldData) return;
+    const wd = canvas._worldData;
+    const agent = (wd.agents || []).find(a => a.id === agentId);
+    if (!agent) return;
+
+    // Simple BFS pathfinding on walkable grid
+    const W = wd.width, H = wd.height;
+    const isWalkable = (x, y) => {
+      if (x < 0 || y < 0 || x >= W || y >= H) return false;
+      return wd.tiles[y * W + x] > 0;
+    };
+
+    const visited = new Set();
+    const queue = [{ x: agent.x, y: agent.y, path: [] }];
+    visited.add(`${agent.x},${agent.y}`);
+    let foundPath = null;
+
+    while (queue.length > 0 && !foundPath) {
+      const { x, y, path } = queue.shift();
+      if (x === targetX && y === targetY) { foundPath = path; break; }
+      for (const [dx, dy] of [[0,1],[0,-1],[1,0],[-1,0]]) {
+        const nx = x + dx, ny = y + dy;
+        const key = `${nx},${ny}`;
+        if (isWalkable(nx, ny) && !visited.has(key)) {
+          visited.add(key);
+          queue.push({ x: nx, y: ny, path: [...path, { x: nx, y: ny }] });
+        }
+      }
+    }
+
+    if (!foundPath || foundPath.length === 0) return;
+
+    // Animate along path (one step every 200ms)
+    let step = 0;
+    const interval = setInterval(() => {
+      if (step >= foundPath.length) {
+        clearInterval(interval);
+        return;
+      }
+      agent.x = foundPath[step].x;
+      agent.y = foundPath[step].y;
+      step++;
+      WorldRenderer.render(canvasId, wd);
+    }, 200);
+  },
+
+  // Start idle animation loop (agents sway slightly)
+  startIdleAnimation: function (canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || canvas._idleAnimRunning) return;
+    canvas._idleAnimRunning = true;
+    let frame = 0;
+    setInterval(() => {
+      if (!canvas._worldData) return;
+      frame++;
+      // Every 2 seconds, toggle idle frame for visual life
+      if (frame % 10 === 0) {
+        canvas._idleFrame = (canvas._idleFrame || 0) === 0 ? 1 : 0;
+        WorldRenderer.render(canvasId, canvas._worldData);
+      }
+    }, 200);
   }
 };
