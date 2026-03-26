@@ -5,11 +5,30 @@
  */
 
 // Theme lighting tints
+// Theme lighting tints
 const THEME_TINTS = {
   'retro-office': { r: 1.1, g: 1.0, b: 0.9 },
   'forest-lab':   { r: 0.9, g: 1.1, b: 0.95 },
   'neon-hq':      { r: 0.9, g: 0.9, b: 1.15 },
 };
+
+// Apply theme tint to a hex color
+function tintColor(hex, tint) {
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  const tr = Math.max(0, Math.min(255, Math.round(r * tint.r)));
+  const tg = Math.max(0, Math.min(255, Math.round(g * tint.g)));
+  const tb = Math.max(0, Math.min(255, Math.round(b * tint.b)));
+  return '#' + [tr, tg, tb].map(c => c.toString(16).padStart(2, '0')).join('');
+}
+
+// Simple per-tile lighting based on position (simulates directional light)
+function tileLighting(x, y, w, h) {
+  // Top-left is brighter, bottom-right is darker
+  const nx = x / w, ny = y / h;
+  return 0.85 + (1 - nx) * 0.15 + (1 - ny) * 0.1;
+}
 
 const PALETTES = {
   'retro-office': {
@@ -35,28 +54,31 @@ window.WorldRenderer = {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const pal = PALETTES[worldData.style] || PALETTES['retro-office'];
+    const tint = THEME_TINTS[worldData.style] || THEME_TINTS['retro-office'];
     const tileSize = 32;
     const W = worldData.width, H = worldData.height;
 
     canvas.width = W * tileSize;
     canvas.height = H * tileSize;
 
-    // Draw tiles
+    // Draw tiles with theme-tinted lighting
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const tile = worldData.tiles[y * W + x];
         const px = x * tileSize, py = y * tileSize;
+        const light = tileLighting(x, y, W, H);
+        const litTint = { r: tint.r * light, g: tint.g * light, b: tint.b * light };
 
         if (tile === 0) {
-          ctx.fillStyle = pal.void;
+          ctx.fillStyle = tintColor(pal.void, litTint);
         } else if (tile === 1) {
-          ctx.fillStyle = pal.corridor;
+          ctx.fillStyle = tintColor(pal.corridor, litTint);
         } else {
-          // Find which room this belongs to
           const room = worldData.rooms.find(r =>
             x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height
           );
-          ctx.fillStyle = room ? (pal.rooms[room.archetype] || pal.roomFloor) : pal.roomFloor;
+          const baseColor = room ? (pal.rooms[room.archetype] || pal.roomFloor) : pal.roomFloor;
+          ctx.fillStyle = tintColor(baseColor, litTint);
         }
         ctx.fillRect(px, py, tileSize, tileSize);
 
