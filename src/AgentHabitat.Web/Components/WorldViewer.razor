@@ -3,7 +3,7 @@
 @inject IJSRuntime JS
 
 <div class="world-viewer">
-    <div class="controls" style="display:flex;gap:12px;align-items:center;padding:12px;background:#1a1a2e;border-radius:8px;margin-bottom:12px">
+    <div class="controls" style="display:flex;gap:12px;align-items:center;padding:12px;background:#1a1a2e;border-radius:8px;margin-bottom:12px;flex-wrap:wrap">
         <label style="color:#888;font-size:13px">Seed:</label>
         <input @bind="Seed" @bind:event="oninput" placeholder="alpha-001"
                style="background:#0d1117;border:1px solid #333;color:#e0e0e0;padding:6px 10px;border-radius:6px;font-size:13px" />
@@ -19,6 +19,10 @@
         <button @onclick="Generate"
                 style="background:#3b82f6;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600">
             Generate
+        </button>
+        <button @onclick="ToggleMinimap"
+                style="background:#222;color:@(_showMinimap ? "#22c55e" : "#666");border:1px solid #333;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:11px">
+            Minimap @(_showMinimap ? "ON" : "OFF")
         </button>
     </div>
 
@@ -45,8 +49,10 @@
         </div>
     }
 
-    <div style="display:flex;gap:16px">
-        <canvas id="world-canvas" style="border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.5)"></canvas>
+    <div style="display:flex;gap:16px;flex-wrap:wrap">
+        <div style="overflow:auto;max-width:100%">
+            <canvas id="world-canvas" style="border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.5)"></canvas>
+        </div>
 
         @if (_selectedRoom != null)
         {
@@ -130,6 +136,7 @@
 @code {
     private string Seed { get; set; } = "alpha-001";
     private string Style { get; set; } = "retro-office";
+    private bool _showMinimap = true;
     private WorldRenderData? _renderData;
     private RoomRenderData? _selectedRoom;
     private AgentRenderData? _selectedAgent;
@@ -197,6 +204,14 @@
         _selectedRoomAgents = [];
         _selectedRoomObjects = [];
         StateHasChanged();
+    }
+
+    private async Task ToggleMinimap()
+    {
+        _showMinimap = !_showMinimap;
+        await JS.InvokeVoidAsync("eval", $"document.getElementById('world-canvas')._showMinimap = {(_showMinimap ? "true" : "false")}");
+        if (_renderData != null)
+            await JS.InvokeVoidAsync("WorldRenderer.render", "world-canvas", _renderData);
     }
 
     private async Task MoveSelectedAgent()

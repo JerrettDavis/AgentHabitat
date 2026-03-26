@@ -399,7 +399,9 @@ window.WorldRenderer = {
       6, 14
     );
 
-    // Minimap (bottom-right corner)
+    // Minimap (bottom-right corner, toggleable)
+    if (canvas._showMinimap === undefined) canvas._showMinimap = true;
+    if (!canvas._showMinimap) { /* skip minimap */ } else {
     const mmScale = 4;
     const mmW = W * mmScale, mmH = H * mmScale;
     const mmX = canvas.width - mmW - 10, mmY = canvas.height - mmH - 10;
@@ -442,6 +444,7 @@ window.WorldRenderer = {
     ctx.font = '8px system-ui';
     ctx.textAlign = 'right';
     ctx.fillText('MAP', mmX + mmW, mmY - 5);
+    } // end minimap toggle
 
     // Persistent selection highlights
     if (canvas._selectedAgentId) {
