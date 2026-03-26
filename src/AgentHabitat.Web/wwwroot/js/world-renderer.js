@@ -372,5 +372,74 @@ window.WorldRenderer = {
       `AgentHabitat | seed: ${worldData.seed} | style: ${worldData.style} | rooms: ${worldData.rooms.length} | hash: ${worldData.topologyHash.slice(0, 12)}...`,
       6, 14
     );
+
+    // Store world data for click handler
+    canvas._worldData = worldData;
+    canvas._tileSize = tileSize;
+    canvas._pal = pal;
+
+    // Click handler (only add once)
+    if (!canvas._clickHandlerSet) {
+      canvas._clickHandlerSet = true;
+      canvas.style.cursor = 'pointer';
+      canvas.addEventListener('click', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const wd = canvas._worldData;
+        const ts = canvas._tileSize;
+        if (!wd) return;
+
+        const tx = Math.floor(mx / ts);
+        const ty = Math.floor(my / ts);
+
+        // Find clicked room
+        const room = wd.rooms.find(r =>
+          tx >= r.x && tx < r.x + r.width && ty >= r.y && ty < r.y + r.height
+        );
+
+        // Find agents in room
+        const roomAgents = room ? (wd.agents || []).filter(a =>
+          a.x >= room.x && a.x < room.x + room.width &&
+          a.y >= room.y && a.y < room.y + room.height
+        ) : [];
+
+        // Find objects in room
+        const roomObjs = room ? (wd.objects || []).filter(o => o.roomId === room.id) : [];
+
+        // Dispatch to Blazor
+        if (window._blazorRoomClickCallback) {
+          window._blazorRoomClickCallback(room ? {
+            id: room.id,
+            archetype: room.archetype,
+            x: room.x, y: room.y,
+            width: room.width, height: room.height,
+            agents: roomAgents.map(a => a.name || a.id),
+            objects: roomObjs.map(o => o.type),
+          } : null);
+        }
+
+        // Visual feedback: highlight clicked room
+        if (room) {
+          const ctx2 = canvas.getContext('2d');
+          const rx = room.x * ts, ry = room.y * ts;
+          const rw = room.width * ts, rh = room.height * ts;
+          ctx2.strokeStyle = '#ffffff80';
+          ctx2.lineWidth = 3;
+          ctx2.setLineDash([6, 4]);
+          ctx2.strokeRect(rx + 2, ry + 2, rw - 4, rh - 4);
+          ctx2.setLineDash([]);
+          // Auto-clear highlight after 2s by re-rendering
+          setTimeout(() => {
+            if (canvas._worldData) WorldRenderer.render(canvasId, canvas._worldData);
+          }, 2000);
+        }
+      });
+    }
+  },
+
+  // Register Blazor callback for room clicks
+  onRoomClick: function (callback) {
+    window._blazorRoomClickCallback = callback;
   }
 };

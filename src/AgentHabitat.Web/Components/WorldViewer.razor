@@ -27,6 +27,7 @@
         <div style="display:flex;gap:16px;margin-bottom:12px;font-size:12px;color:#888">
             <span>Rooms: <strong style="color:#e0e0e0">@_renderData.Rooms.Length</strong></span>
             <span>Agents: <strong style="color:#e0e0e0">@_renderData.Agents.Length</strong></span>
+            <span>Objects: <strong style="color:#e0e0e0">@_renderData.Objects.Length</strong></span>
             <span>Grid: <strong style="color:#e0e0e0">@(_renderData.Width)×@(_renderData.Height)</strong></span>
             <span>Hash: <strong style="color:#e0e0e0">@_renderData.TopologyHash[..12]...</strong></span>
         </div>
@@ -44,28 +45,133 @@
         </div>
     }
 
-    <canvas id="world-canvas" style="border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.5)"></canvas>
+    <div style="display:flex;gap:16px">
+        <canvas id="world-canvas" style="border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.5)"></canvas>
+
+        @if (_selectedRoom != null)
+        {
+            <div style="width:260px;background:#0d1117;border:1px solid #222;border-radius:8px;padding:16px;font-size:13px">
+                <h3 style="color:#e0e0e0;margin:0 0 8px;font-size:15px">@_selectedRoom.Archetype.Replace("Room", " Room")</h3>
+                <div style="color:#666;font-size:11px;margin-bottom:12px">
+                    @_selectedRoom.Id — @(_selectedRoom.Width)×@(_selectedRoom.Height) tiles at (@_selectedRoom.X, @_selectedRoom.Y)
+                </div>
+
+                @if (_selectedRoomAgents.Length > 0)
+                {
+                    <div style="margin-bottom:12px">
+                        <div style="color:#888;font-size:11px;font-weight:600;margin-bottom:4px">AGENTS</div>
+                        @foreach (var agent in _selectedRoomAgents)
+                        {
+                            <div style="display:flex;align-items:center;gap:6px;padding:4px 0">
+                                <div style="width:6px;height:6px;border-radius:50%;background:@agent.Color"></div>
+                                <span style="color:@agent.Color;font-weight:600">@agent.Name</span>
+                                <span style="color:#555">@agent.Role</span>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (_selectedRoomObjects.Length > 0)
+                {
+                    <div>
+                        <div style="color:#888;font-size:11px;font-weight:600;margin-bottom:4px">FURNITURE</div>
+                        <div style="display:flex;gap:4px;flex-wrap:wrap">
+                            @foreach (var obj in _selectedRoomObjects.GroupBy(o => o.Type))
+                            {
+                                <span style="background:#1a1a2e;color:#aaa;padding:2px 8px;border-radius:4px;font-size:11px">
+                                    @obj.Key ×@obj.Count()
+                                </span>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <button @onclick="ClearSelection"
+                        style="margin-top:12px;background:#222;color:#888;border:1px solid #333;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:11px;width:100%">
+                    Close
+                </button>
+            </div>
+        }
+    </div>
+
+    @if (_selectedRoom == null)
+    {
+        <div style="color:#555;font-size:11px;margin-top:8px">Click a room to inspect it</div>
+    }
 </div>
 
 @code {
     private string Seed { get; set; } = "alpha-001";
     private string Style { get; set; } = "retro-office";
     private WorldRenderData? _renderData;
+    private RoomRenderData? _selectedRoom;
+    private AgentRenderData[] _selectedRoomAgents = [];
+    private ObjectRenderData[] _selectedRoomObjects = [];
+    private DotNetObjectReference<WorldViewer>? _selfRef;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
+            _selfRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("eval",
+                $"WorldRenderer.onRoomClick((room) => {{ if(room) DotNet.invokeMethodAsync('AgentHabitat.Web', 'OnRoomClicked', JSON.stringify(room)); }})");
             await Generate();
         }
+    }
+
+    [JSInvokable("OnRoomClicked")]
+    public static Task OnRoomClickedStatic(string roomJson)
+    {
+        // Static callback — in a real app we'd use a service/event bus
+        return Task.CompletedTask;
     }
 
     private async Task Generate()
     {
         var world = WorldSvc.Generate(Seed, Style);
         _renderData = WorldSvc.ToRenderData(world);
+        _selectedRoom = null;
         StateHasChanged();
 
         await JS.InvokeVoidAsync("WorldRenderer.render", "world-canvas", _renderData);
+
+        // Register click callback that updates Blazor state
+        await JS.InvokeVoidAsync("eval", @"
+            WorldRenderer.onRoomClick((room) => {
+                const panel = document.getElementById('room-detail-data');
+                if (panel) panel.setAttribute('data-room', JSON.stringify(room));
+                // For now, visual feedback is handled in JS
+            });
+        ");
+    }
+
+    private void SelectRoom(RoomRenderData room)
+    {
+        _selectedRoom = room;
+        if (_renderData != null)
+        {
+            _selectedRoomAgents = _renderData.Agents
+                .Where(a => a.X >= room.X && a.X < room.X + room.Width &&
+                            a.Y >= room.Y && a.Y < room.Y + room.Height)
+                .ToArray();
+            _selectedRoomObjects = _renderData.Objects
+                .Where(o => o.RoomId == room.Id)
+                .ToArray();
+        }
+        StateHasChanged();
+    }
+
+    private void ClearSelection()
+    {
+        _selectedRoom = null;
+        _selectedRoomAgents = [];
+        _selectedRoomObjects = [];
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        _selfRef?.Dispose();
     }
 }
