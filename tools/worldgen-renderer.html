@@ -177,8 +177,8 @@ function generateWorld(seed, opts) {
 }
 
 function overlap(a, b) {
-  // Add 2-tile padding between rooms to prevent visual crowding
-  const pad = 2;
+  // Add 3-tile padding between rooms (zero-tolerance overlap policy)
+  const pad = 3;
   return a.x - pad < b.x + b.w && a.x + a.w + pad > b.x && a.y - pad < b.y + b.h && a.y + a.h + pad > b.y;
 }
 function carveH(x1, x2, y, w, opts) {
