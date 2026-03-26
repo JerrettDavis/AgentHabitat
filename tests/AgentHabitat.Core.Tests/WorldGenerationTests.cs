@@ -311,6 +311,63 @@ public class WorldGenerationTests
     }
 
     [Fact]
+    public void GeneratedWorld_CapacityExpansion_FitsEightAgents()
+    {
+        var agents = Enumerable.Range(1, 8)
+            .Select(i => new AgentDefinition($"agent-{i}", $"Agent {i}", "Developer"))
+            .ToArray();
+        var (w, h) = DeterministicWorldGenerator.ComputeRequiredSize(4, agents.Length);
+        var opts = new WorldGenerationOptions(w, h, 1, WorldStyleProfiles.RetroOffice, "v1", agents);
+        var world = _gen.GenerateWorld("capacity-test", opts);
+
+        // All 8 agents should have offices
+        foreach (var agent in agents)
+        {
+            Assert.Contains(world.Rooms, r => r.Id == $"office-{agent.Id}");
+        }
+        // Plus 4 shared rooms
+        Assert.Equal(12, world.Rooms.Count);
+
+        var errors = WorldValidation.Validate(world);
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void ComputeRequiredSize_ScalesWithAgentCount()
+    {
+        var (w1, h1) = DeterministicWorldGenerator.ComputeRequiredSize(4, 2);
+        var (w2, h2) = DeterministicWorldGenerator.ComputeRequiredSize(4, 8);
+        var (w3, h3) = DeterministicWorldGenerator.ComputeRequiredSize(4, 16);
+
+        // More agents = larger world
+        Assert.True(w2 * h2 > w1 * h1, "8 agents should need more space than 2");
+        Assert.True(w3 * h3 > w2 * h2, "16 agents should need more space than 8");
+        // Stays within bounds
+        Assert.True(w3 <= 96 && h3 <= 72, "Should not exceed max bounds");
+    }
+
+    [Fact]
+    public void OwnershipMap_NoDuplicates_AcrossSeeds()
+    {
+        for (var i = 0; i < 20; i++)
+        {
+            var agents = Enumerable.Range(1, 6)
+                .Select(j => new AgentDefinition($"a-{j}", $"Agent {j}", "Developer"))
+                .ToArray();
+            var (w, h) = DeterministicWorldGenerator.ComputeRequiredSize(4, agents.Length);
+            var opts = new WorldGenerationOptions(w, h, 1, WorldStyleProfiles.RetroOffice, "v1", agents);
+            var world = _gen.GenerateWorld($"own-{i:000}", opts);
+
+            var officeIds = agents.Select(a => $"office-{a.Id}").ToList();
+            var foundOffices = world.Rooms.Where(r => officeIds.Contains(r.Id)).ToList();
+
+            // Each agent has exactly one office, no dupes
+            Assert.Equal(agents.Length, foundOffices.Count);
+            Assert.Equal(foundOffices.Count, foundOffices.Select(r => r.Id).Distinct().Count());
+        }
+    }
+
+    [Fact]
     public void SeedPack_WritesHashSamplesArtifact_ForAlphaAndExtendedSeeds()
     {
         var seeds = new[] { "alpha-001", "alpha-002", "alpha-003", "beta-001", "gamma-001" };

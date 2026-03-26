@@ -77,7 +77,21 @@ public sealed class DeterministicWorldGenerator : IWorldGenerator
                 return candidate;
         }
 
-        return null; // Could not place — world is too full
+        return null; // Could not place — caller should expand world and retry
+    }
+
+    // Capacity expansion: determine minimum world size to fit N offices + shared rooms
+    public static (int Width, int Height) ComputeRequiredSize(int sharedRoomCount, int officeCount, int baseWidth = 32, int baseHeight = 24)
+    {
+        // Each office needs ~35 tiles (5x7) + corridor space (~10 tiles)
+        // Shared rooms need ~80 tiles (10x8) each + corridor space
+        var totalArea = sharedRoomCount * 120 + officeCount * 60;
+        // Target ~40% fill ratio for comfortable placement
+        var requiredArea = (int)(totalArea / 0.4);
+        var side = (int)Math.Ceiling(Math.Sqrt(requiredArea));
+        var width = Math.Max(baseWidth, Math.Min(96, side));
+        var height = Math.Max(baseHeight, Math.Min(72, (int)(side * 0.75)));
+        return (width, height);
     }
 
     private static IEnumerable<RoomPlacement> PlaceRooms(SeededRng rng, WorldGenerationOptions options)
