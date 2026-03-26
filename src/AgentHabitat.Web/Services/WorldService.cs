@@ -105,11 +105,13 @@ public class WorldService
                         Place("desk", r.X + 2, dy, r.Id);
                         Place("monitor", r.X + 3, dy, r.Id);
                         Place("chair", r.X + 4, dy, r.Id);
+                        Place("keyboard", r.X + 2, dy + 1, r.Id);
                         if (r.Width > 7)
                         {
                             Place("desk", r.X + r.Width - 4, dy, r.Id);
                             Place("monitor", r.X + r.Width - 3, dy, r.Id);
                             Place("chair", r.X + r.Width - 5, dy, r.Id);
+                            Place("headphones", r.X + r.Width - 4, dy + 1, r.Id);
                         }
                     }
                     // Whiteboard wall
@@ -117,13 +119,18 @@ public class WorldService
                     // Coffee corner
                     Place("coffee", r.X + r.Width - 2, r.Y + r.Height - 2, r.Id);
                     Place("mug", r.X + r.Width - 2, r.Y + r.Height - 3, r.Id);
+                    Place("snack-bowl", r.X + r.Width - 3, r.Y + r.Height - 2, r.Id);
                     // Plant + trash
                     Place("plant", r.X + 1, r.Y + r.Height - 2, r.Id);
                     Place("trash", r.X + 1, r.Y + 1, r.Id);
-                    // Cable clutter
+                    // Cable clutter + server
                     Place("cables", r.X + 3, r.Y + r.Height - 2, r.Id);
-                    // Wall clock
+                    if (r.Width > 8) Place("server", r.X + r.Width - 2, cy, r.Id);
+                    // Wall clock + calendar
                     Place("clock", cx + 2, r.Y + 1, r.Id);
+                    Place("calendar", r.X + 1, cy, r.Id);
+                    // Fire extinguisher near door
+                    Place("fire-ext", r.X + 1, r.Y + 2, r.Id);
                     break;
 
                 case RoomArchetype.ReviewRoom:
@@ -141,14 +148,19 @@ public class WorldService
                     Place("screen", cx, r.Y + 1, r.Id);
                     // Whiteboard
                     Place("whiteboard", r.X + 1, cy, r.Id);
-                    // Water cooler
+                    // Water cooler + snacks
                     Place("cooler", r.X + r.Width - 2, r.Y + 1, r.Id);
-                    // Bulletin board
+                    Place("snack-bowl", r.X + r.Width - 3, r.Y + 1, r.Id);
+                    // Bulletin board + calendar
                     Place("bulletin", r.X + r.Width - 2, cy, r.Id);
-                    // Plant
+                    Place("calendar", r.X + r.Width - 2, cy + 1, r.Id);
+                    // Plant + art
                     Place("plant", r.X + 1, r.Y + r.Height - 2, r.Id);
+                    Place("art-frame", r.X + 1, r.Y + 1, r.Id);
                     // Notes/papers
                     Place("papers", cx + 1, cy + 1, r.Id);
+                    // Pens on table
+                    Place("mug", cx - 1, cy + 1, r.Id);
                     break;
 
                 case RoomArchetype.Library:
@@ -164,18 +176,22 @@ public class WorldService
                     Place("desk", cx - 1, cy, r.Id);
                     // Rug under reading area
                     Place("rug", cx, cy + 1, r.Id);
-                    // Globe or art
+                    // Globe, art, potted tree
                     Place("globe", r.X + r.Width - 2, r.Y + r.Height - 2, r.Id);
+                    Place("art-frame", cx, r.Y + 1, r.Id);
+                    Place("potted-tree", r.X + r.Width - 2, r.Y + 1, r.Id);
                     // Plant
                     Place("plant", r.X + 1, r.Y + r.Height - 2, r.Id);
-                    // Clock
-                    Place("clock", cx, r.Y + 1, r.Id);
+                    // Clock + window
+                    Place("clock", cx + 2, r.Y + 1, r.Id);
+                    if (r.Width > 6) Place("window", r.X + 1, r.Y + 1, r.Id);
                     break;
 
                 case RoomArchetype.PrivateOffice:
-                    // Personal desk + monitor (against back wall)
+                    // Personal desk + monitor + keyboard (against back wall)
                     Place("desk", cx, r.Y + 1, r.Id);
                     Place("monitor", cx, r.Y + 1, r.Id);
+                    Place("keyboard", cx - 1, r.Y + 2, r.Id);
                     Place("chair", cx, r.Y + 2, r.Id);
                     // Personal items based on office owner role
                     var ownerAgent = (world.Options.Agents ?? [])
@@ -184,23 +200,36 @@ public class WorldService
                     {
                         Place("cables", r.X + 1, r.Y + 1, r.Id);
                         Place("mug", cx + 1, r.Y + 2, r.Id);
+                        Place("headphones", cx + 1, r.Y + 1, r.Id);
                         if (r.Width > 5) Place("bookshelf", r.X + r.Width - 2, r.Y + 1, r.Id);
+                        if (r.Width > 6) Place("server", r.X + r.Width - 2, r.Y + 2, r.Id);
                     }
                     else if (ownerAgent?.Role == "Assistant")
                     {
                         Place("papers", r.X + 1, r.Y + 1, r.Id);
-                        Place("plant", r.X + r.Width - 2, r.Y + 1, r.Id);
+                        Place("filing", r.X + r.Width - 2, r.Y + 1, r.Id);
+                        Place("calendar", r.X + 1, r.Y + 2, r.Id);
+                        Place("plant", r.X + r.Width - 2, r.Y + 2, r.Id);
                     }
                     else if (ownerAgent?.Role == "Triage")
                     {
                         Place("bulletin", r.X + 1, r.Y + 1, r.Id);
                         Place("clock", cx + 1, r.Y + 1, r.Id);
+                        Place("papers", r.X + 1, r.Y + 2, r.Id);
+                        if (r.Width > 5) Place("screen", r.X + r.Width - 2, r.Y + 1, r.Id);
+                    }
+                    else
+                    {
+                        Place("art-frame", r.X + 1, r.Y + 1, r.Id);
+                        Place("mug", cx + 1, r.Y + 2, r.Id);
                     }
                     // Common personal items
                     Place("plant", r.X + 1, r.Y + r.Height - 2, r.Id);
                     Place("lamp", r.X + r.Width - 2, r.Y + r.Height - 2, r.Id);
                     Place("trash", r.X + r.Width - 2, cy, r.Id);
                     if (r.Height > 4) Place("rug", cx, cy + 1, r.Id);
+                    if (r.Width > 5) Place("window", cx, r.Y + r.Height - 2, r.Id);
+                    Place("snack-bowl", r.X + 1, cy, r.Id);
                     break;
 
                 default: // Lounge
@@ -213,25 +242,32 @@ public class WorldService
                     Place("screen", cx, r.Y + 1, r.Id);
                     // Vending machine
                     Place("vending", r.X + r.Width - 2, r.Y + 1, r.Id);
-                    // Plants (multiple)
+                    // Plants (multiple) + potted tree
                     Place("plant", r.X + 1, r.Y + 1, r.Id);
                     Place("plant", r.X + r.Width - 2, r.Y + r.Height - 2, r.Id);
+                    Place("potted-tree", r.X + 1, cy, r.Id);
                     // Rug
                     Place("rug", r.X + 3, r.Y + 3, r.Id);
-                    // Lamp
+                    // Lamp + art
                     Place("lamp", r.X + r.Width - 2, cy, r.Id);
-                    // Magazines/papers
+                    Place("art-frame", cx + 2, r.Y + 1, r.Id);
+                    // Magazines/papers + snacks
                     Place("papers", r.X + 3, r.Y + 5, r.Id);
-                    // Coat rack
+                    Place("snack-bowl", r.X + 4, r.Y + 5, r.Id);
+                    // Coat rack + fan
                     Place("coatrack", r.X + 1, r.Y + r.Height - 2, r.Id);
-                    // Mug on table
+                    Place("fan", r.X + r.Width - 2, r.Y + r.Height - 3, r.Id);
+                    // Mug on table + window
                     Place("mug", r.X + 4, r.Y + 4, r.Id);
+                    if (r.Width > 7) Place("window", r.X + r.Width - 2, r.Y + 2, r.Id);
+                    // Fire ext
+                    Place("fire-ext", r.X + 1, r.Y + 2, r.Id);
                     break;
             }
             // Density variation: bonus decorations based on room area
             var area = r.Width * r.Height;
             var bonusCount = area > 60 ? 4 : area > 40 ? 3 : area > 25 ? 2 : 1;
-            string[] bonusTypes = ["plant", "papers", "mug", "trash", "rug", "clock", "bulletin"];
+            string[] bonusTypes = ["plant", "papers", "mug", "trash", "rug", "clock", "bulletin", "snack-bowl", "calendar", "headphones", "fan"];
 
             for (var b = 0; b < bonusCount; b++)
             {

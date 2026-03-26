@@ -402,6 +402,120 @@ window.WorldRenderer = {
         // Hooks + coat
         ctx.fillStyle = tintColor('#4a6', tint); ctx.fillRect(ox+10, oy+6, 5, 8); // jacket
         ctx.fillStyle = matPal.metal; ctx.fillRect(ox+12, oy+5, 2, 2); ctx.fillRect(ox+18, oy+5, 2, 2);
+      } else if (t === 'server') {
+        // Server rack
+        drawLitRect(ctx, ox+6, oy+2, 20, 26, tintColor('#333', tint), 4, 0.6);
+        drawLitRect(ctx, ox+8, oy+4, 16, 5, tintColor('#222', tint), 5, 0.5);
+        drawLitRect(ctx, ox+8, oy+11, 16, 5, tintColor('#222', tint), 5, 0.5);
+        drawLitRect(ctx, ox+8, oy+18, 16, 5, tintColor('#222', tint), 5, 0.5);
+        // LED indicators
+        ctx.fillStyle = '#22c55e'; ctx.fillRect(ox+10, oy+5, 2, 2);
+        ctx.fillStyle = '#3b82f6'; ctx.fillRect(ox+10, oy+12, 2, 2);
+        ctx.fillStyle = '#22c55e'; ctx.fillRect(ox+10, oy+19, 2, 2);
+        ctx.fillStyle = '#ef4444'; ctx.fillRect(ox+14, oy+12, 2, 2);
+      } else if (t === 'filing') {
+        // Filing cabinet
+        drawLitRect(ctx, ox+8, oy+4, 16, 22, matPal.metal, 4, 0.7);
+        drawLitRect(ctx, ox+9, oy+5, 14, 6, tintColor('#888', tint), 4.5, 0.6);
+        drawLitRect(ctx, ox+9, oy+13, 14, 6, tintColor('#888', tint), 4.5, 0.6);
+        drawLitRect(ctx, ox+9, oy+21, 14, 4, tintColor('#888', tint), 4.5, 0.6);
+        // Handles
+        ctx.fillStyle = tintColor('#ccc', tint);
+        ctx.fillRect(ox+15, oy+7, 3, 1); ctx.fillRect(ox+15, oy+15, 3, 1); ctx.fillRect(ox+15, oy+23, 3, 1);
+      } else if (t === 'potted-tree') {
+        // Large potted tree
+        drawLitRect(ctx, ox+12, oy+22, 8, 6, matPal.pot, 3, 0.7);
+        drawLitRect(ctx, ox+15, oy+12, 2, 10, tintColor('#5a3a1a', tint), 2, 0.6);
+        for (const [lx,ly,sz] of [[12,4,5],[18,3,4],[10,8,4],[20,6,3],[15,1,5],[16,7,4]]) {
+          ctx.fillStyle = matPal.leaf;
+          ctx.beginPath(); ctx.arc(ox+lx, oy+ly, sz, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = matPal.leafDark;
+          ctx.beginPath(); ctx.arc(ox+lx+1, oy+ly+1, sz*0.5, 0, Math.PI*2); ctx.fill();
+        }
+      } else if (t === 'art-frame') {
+        // Wall art / framed picture
+        drawLitRect(ctx, ox+6, oy+4, 20, 16, tintColor('#3a2a1a', tint), 4, 0.7);
+        drawLitRect(ctx, ox+8, oy+6, 16, 12, tintColor('#87ceeb', tint), 5, 0.9);
+        // Abstract art stripes
+        ctx.fillStyle = tintColor('#e76f51', tint) + '80'; ctx.fillRect(ox+10, oy+8, 6, 4);
+        ctx.fillStyle = tintColor('#2a9d8f', tint) + '80'; ctx.fillRect(ox+16, oy+10, 5, 6);
+        ctx.fillStyle = tintColor('#e9c46a', tint) + '60'; ctx.fillRect(ox+11, oy+13, 8, 3);
+      } else if (t === 'fan') {
+        // Desk fan
+        ctx.fillStyle = matPal.metal;
+        ctx.beginPath(); ctx.arc(ox+16, oy+10, 8, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = tintColor('#666', tint);
+        ctx.beginPath(); ctx.arc(ox+16, oy+10, 6, 0, Math.PI*2); ctx.fill();
+        // Blades
+        ctx.strokeStyle = tintColor('#bbb', tint); ctx.lineWidth = 2;
+        for (let a = 0; a < 3; a++) {
+          const angle = (a * Math.PI * 2 / 3) + (Date.now() * 0.01 % (Math.PI * 2));
+          ctx.beginPath(); ctx.moveTo(ox+16, oy+10);
+          ctx.lineTo(ox+16+Math.cos(angle)*5, oy+10+Math.sin(angle)*5); ctx.stroke();
+        }
+        drawLitRect(ctx, ox+14, oy+18, 4, 8, matPal.metal, 2, 0.6);
+      } else if (t === 'headphones') {
+        // Headphones on desk
+        ctx.strokeStyle = tintColor('#333', tint); ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(ox+16, oy+14, 6, Math.PI, 0); ctx.stroke();
+        drawLitRect(ctx, ox+10, oy+14, 4, 6, tintColor('#444', tint), 3, 0.6);
+        drawLitRect(ctx, ox+18, oy+14, 4, 6, tintColor('#444', tint), 3, 0.6);
+        // Ear cushions
+        ctx.fillStyle = tintColor('#666', tint);
+        ctx.fillRect(ox+10, oy+15, 4, 4); ctx.fillRect(ox+18, oy+15, 4, 4);
+      } else if (t === 'keyboard') {
+        // Keyboard
+        drawLitRect(ctx, ox+6, oy+14, 20, 6, tintColor('#333', tint), 3, 0.7);
+        // Key rows
+        for (let row = 0; row < 3; row++) {
+          for (let col = 0; col < 8; col++) {
+            ctx.fillStyle = tintColor('#555', tint);
+            ctx.fillRect(ox+8+col*2, oy+15+row*2, 1, 1);
+          }
+        }
+        // Space bar
+        ctx.fillStyle = tintColor('#555', tint); ctx.fillRect(ox+12, oy+19, 8, 1);
+      } else if (t === 'snack-bowl') {
+        // Snack bowl
+        ctx.fillStyle = tintColor('#ddd', tint);
+        ctx.beginPath(); ctx.ellipse(ox+16, oy+16, 7, 5, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = tintColor('#ccc', tint);
+        ctx.beginPath(); ctx.ellipse(ox+16, oy+16, 5, 3, 0, 0, Math.PI*2); ctx.fill();
+        // Snacks
+        const snackColors = ['#f59e0b', '#ef4444', '#22c55e', '#3b82f6'];
+        for (let i = 0; i < 4; i++) {
+          ctx.fillStyle = tintColor(snackColors[i], tint);
+          ctx.fillRect(ox+13+i*2, oy+15, 1, 1);
+        }
+      } else if (t === 'window') {
+        // Window (wall decoration)
+        drawLitRect(ctx, ox+4, oy+4, 24, 18, tintColor('#1a3050', tint), 5, 0.8);
+        drawLitRect(ctx, ox+6, oy+6, 20, 14, tintColor('#87ceeb', tint), 6, 1.0);
+        // Window panes
+        ctx.fillStyle = tintColor('#aaddff', tint) + '40';
+        ctx.fillRect(ox+6, oy+6, 9, 6); ctx.fillRect(ox+17, oy+6, 9, 6);
+        // Frame dividers
+        ctx.fillStyle = tintColor('#555', tint);
+        ctx.fillRect(ox+15, oy+6, 2, 14); ctx.fillRect(ox+6, oy+12, 20, 2);
+        // Glow
+        ctx.fillStyle = '#87ceeb10';
+        ctx.fillRect(ox+2, oy+2, 28, 24);
+      } else if (t === 'fire-ext') {
+        // Fire extinguisher
+        drawLitRect(ctx, ox+13, oy+6, 6, 16, tintColor('#cc2222', tint), 4, 0.8);
+        drawLitRect(ctx, ox+14, oy+4, 4, 3, tintColor('#888', tint), 5, 0.9);
+        drawLitRect(ctx, ox+12, oy+4, 2, 4, tintColor('#666', tint), 3, 0.6);
+        // Label
+        ctx.fillStyle = '#fff'; ctx.fillRect(ox+14, oy+10, 4, 3);
+      } else if (t === 'calendar') {
+        // Wall calendar
+        drawLitRect(ctx, ox+8, oy+4, 16, 18, tintColor('#fff', tint), 5, 0.9);
+        drawLitRect(ctx, ox+8, oy+4, 16, 4, tintColor('#ef4444', tint), 5.5, 0.8);
+        // Grid lines
+        ctx.fillStyle = tintColor('#ddd', tint);
+        for (let row = 0; row < 4; row++) for (let col = 0; col < 4; col++) {
+          ctx.fillRect(ox+10+col*3, oy+10+row*2, 2, 1);
+        }
       } else {
         // Fallback dot
         ctx.fillStyle = pal.accent + '40';
