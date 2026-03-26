@@ -102,6 +102,60 @@ window.WorldRenderer = {
       }
     }
 
+    // Agents
+    for (const agent of (worldData.agents || [])) {
+      const ax = agent.x * tileSize + tileSize / 2;
+      const ay = agent.y * tileSize + tileSize / 2;
+      const sc = agent.status === 'active' ? '#22c55e' : agent.status === 'idle' ? '#eab308' : '#666';
+
+      // Shadow
+      ctx.fillStyle = '#00000030';
+      ctx.beginPath();
+      ctx.ellipse(ax, ay + 14, 10, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Body circle
+      ctx.beginPath();
+      ctx.arc(ax, ay, 12, 0, Math.PI * 2);
+      ctx.fillStyle = agent.color;
+      ctx.fill();
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Face (simple but clean)
+      ctx.fillStyle = '#ffd5a0';
+      ctx.beginPath();
+      ctx.arc(ax, ay - 2, 6, 0, Math.PI * 2);
+      ctx.fill();
+      // Eyes
+      ctx.fillStyle = '#000';
+      ctx.fillRect(ax - 3, ay - 3, 2, 2);
+      ctx.fillRect(ax + 2, ay - 3, 2, 2);
+      // Mouth
+      ctx.fillRect(ax - 2, ay + 1, 4, 1);
+
+      // Status dot
+      ctx.beginPath();
+      ctx.arc(ax + 10, ay - 10, 4, 0, Math.PI * 2);
+      ctx.fillStyle = sc;
+      ctx.fill();
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Name label
+      ctx.font = 'bold 10px system-ui';
+      ctx.textAlign = 'center';
+      const nm = ctx.measureText(agent.name);
+      ctx.fillStyle = '#000000cc';
+      ctx.beginPath();
+      ctx.roundRect(ax - nm.width / 2 - 4, ay - 26, nm.width + 8, 14, 3);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.fillText(agent.name, ax, ay - 15);
+    }
+
     // Info overlay
     ctx.fillStyle = '#00000080';
     ctx.fillRect(0, 0, canvas.width, 20);

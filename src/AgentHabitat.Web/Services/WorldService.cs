@@ -42,11 +42,30 @@ public class WorldService
             }
         }
 
+        // Generate agents (one per required room)
+        var agentDefs = new[]
+        {
+            ("claude", "Claude", "#f97316", "Developer"),
+            ("copilot", "Copilot", "#3b82f6", "Developer"),
+            ("jdai", "JD.AI", "#22c55e", "Assistant"),
+            ("ralph", "Ralph", "#a855f7", "Triage"),
+        };
+
+        var agents = new List<AgentRenderData>();
+        for (var i = 0; i < Math.Min(agentDefs.Length, world.Rooms.Count); i++)
+        {
+            var r = world.Rooms[i];
+            var (id, name, color, role) = agentDefs[i];
+            agents.Add(new AgentRenderData(id, name, color, role,
+                r.CenterX, r.CenterY, i < 2 ? "active" : i < 3 ? "idle" : "offline"));
+        }
+
         return new WorldRenderData(
             world.Width,
             world.Height,
             tiles,
             rooms,
+            agents.ToArray(),
             world.Seed,
             world.Options.StyleProfile,
             world.TopologyHash
@@ -59,6 +78,7 @@ public record WorldRenderData(
     int Height,
     int[] Tiles,
     RoomRenderData[] Rooms,
+    AgentRenderData[] Agents,
     string Seed,
     string Style,
     string TopologyHash
@@ -71,4 +91,14 @@ public record RoomRenderData(
     int Y,
     int Width,
     int Height
+);
+
+public record AgentRenderData(
+    string Id,
+    string Name,
+    string Color,
+    string Role,
+    int X,
+    int Y,
+    string Status
 );

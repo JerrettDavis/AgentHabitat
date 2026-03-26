@@ -3,30 +3,48 @@
 @inject IJSRuntime JS
 
 <div class="world-viewer">
-    <div class="controls">
-        <label>Seed:</label>
-        <input @bind="Seed" @bind:event="oninput" placeholder="alpha-001" />
+    <div class="controls" style="display:flex;gap:12px;align-items:center;padding:12px;background:#1a1a2e;border-radius:8px;margin-bottom:12px">
+        <label style="color:#888;font-size:13px">Seed:</label>
+        <input @bind="Seed" @bind:event="oninput" placeholder="alpha-001"
+               style="background:#0d1117;border:1px solid #333;color:#e0e0e0;padding:6px 10px;border-radius:6px;font-size:13px" />
 
-        <label>Style:</label>
-        <select @bind="Style">
+        <label style="color:#888;font-size:13px">Style:</label>
+        <select @bind="Style"
+                style="background:#0d1117;border:1px solid #333;color:#e0e0e0;padding:6px 10px;border-radius:6px;font-size:13px">
             <option value="retro-office">Retro Office</option>
             <option value="forest-lab">Forest Lab</option>
             <option value="neon-hq">Neon HQ</option>
         </select>
 
-        <button @onclick="Generate">Generate</button>
+        <button @onclick="Generate"
+                style="background:#3b82f6;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600">
+            Generate
+        </button>
     </div>
 
     @if (_renderData != null)
     {
-        <div class="world-info">
-            <span>Rooms: @_renderData.Rooms.Length</span>
-            <span>Grid: @_renderData.Width×@_renderData.Height</span>
-            <span>Hash: @_renderData.TopologyHash[..12]...</span>
+        <div style="display:flex;gap:16px;margin-bottom:12px;font-size:12px;color:#888">
+            <span>Rooms: <strong style="color:#e0e0e0">@_renderData.Rooms.Length</strong></span>
+            <span>Agents: <strong style="color:#e0e0e0">@_renderData.Agents.Length</strong></span>
+            <span>Grid: <strong style="color:#e0e0e0">@(_renderData.Width)×@(_renderData.Height)</strong></span>
+            <span>Hash: <strong style="color:#e0e0e0">@_renderData.TopologyHash[..12]...</strong></span>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            @foreach (var agent in _renderData.Agents)
+            {
+                <div style="display:flex;align-items:center;gap:6px;background:#0d1117;padding:6px 12px;border-radius:6px;border:1px solid #222">
+                    <div style="width:8px;height:8px;border-radius:50%;background:@agent.Color"></div>
+                    <span style="color:@agent.Color;font-size:12px;font-weight:600">@agent.Name</span>
+                    <span style="color:#666;font-size:11px">@agent.Role</span>
+                    <div style="width:6px;height:6px;border-radius:50%;background:@(agent.Status == "active" ? "#22c55e" : agent.Status == "idle" ? "#eab308" : "#666")"></div>
+                </div>
+            }
         </div>
     }
 
-    <canvas id="world-canvas"></canvas>
+    <canvas id="world-canvas" style="border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.5)"></canvas>
 </div>
 
 @code {
