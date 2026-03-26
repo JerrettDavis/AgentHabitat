@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AgentHabitat.Core.WorldGen.Contracts;
 using AgentHabitat.Core.WorldGen.Implementation;
 using AgentHabitat.Core.WorldGen.Validation;
@@ -140,6 +141,18 @@ public class WorldGenerationTests
     }
 
     [Fact]
+    public void PropertyStyle_InvariantLoopAcrossNSeeds_NoOverlapOrReachabilityBreaks()
+    {
+        for (var i = 0; i < 50; i++)
+        {
+            var seed = $"prop-{i:000}";
+            var world = _gen.GenerateWorld(seed, _defaultOpts);
+            var errors = WorldValidation.Validate(world);
+            Assert.Empty(errors);
+        }
+    }
+
+    [Fact]
     public void Determinism_RunsIdenticalAcross100Iterations()
     {
         var first = _gen.GenerateWorld("stability-check", _defaultOpts);
@@ -150,5 +163,34 @@ public class WorldGenerationTests
             Assert.Equal(first.TopologyHash, result.TopologyHash);
             Assert.Equal(first.Rooms.Count, result.Rooms.Count);
         }
+    }
+
+    [Fact]
+    public void SeedPack_WritesHashSamplesArtifact_ForAlphaAndExtendedSeeds()
+    {
+        var seeds = new[] { "alpha-001", "alpha-002", "alpha-003", "beta-001", "gamma-001" };
+        var rows = seeds
+            .Select(seed => _gen.GenerateWorld(seed, _defaultOpts))
+            .Select(w => new
+            {
+                seed = w.Seed,
+                style = w.Options.StyleProfile,
+                width = w.Width,
+                height = w.Height,
+                topologyHash = w.TopologyHash,
+                timestamp = DateTimeOffset.UtcNow.ToString("O")
+            })
+            .ToList();
+
+        var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+        var outDir = Path.Combine(repoRoot, "docs", "poc", "worldgen");
+        Directory.CreateDirectory(outDir);
+        var outPath = Path.Combine(outDir, "hash-samples.json");
+
+        var json = JsonSerializer.Serialize(rows, new JsonSerializerOptions { WriteIndented = true });
+        File.WriteAllText(outPath, json);
+
+        Assert.True(File.Exists(outPath));
+        Assert.True(rows.Count == 5);
     }
 }
