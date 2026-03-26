@@ -620,14 +620,22 @@ function render(canvas, world) {
     }
   }
 
+  // Collect label positions for collision avoidance
+  const labelPositions = [];
+
   // Agents as pixel art humanoid sprites
   for (const agent of (world.agents || [])) {
-    const ax = agent.x * tileSize;
-    const ay = agent.y * tileSize + oY;
+    // Idle animation: deterministic per-agent pixel offset (simulates breathing/sway)
+    const idleHash = agent.id.charCodeAt(0) + agent.id.charCodeAt(agent.id.length - 1);
+    const idleOffsetY = (idleHash % 2 === 0) ? 0 : -1; // frame 0 or frame 1
+    const idleOffsetX = (idleHash % 3 === 0) ? 1 : 0;
+
+    const ax = agent.x * tileSize + idleOffsetX;
+    const ay = agent.y * tileSize + oY + idleOffsetY;
     const sc = agent.status === 'active' ? '#22c55e' : agent.status === 'idle' ? '#eab308' : '#666';
     const c = agent.color;
 
-    // Shadow
+    // Shadow (shifts with idle)
     ctx.fillStyle = '#00000030';
     ctx.beginPath();
     ctx.ellipse(ax + 16, ay + 30, 12, 5, 0, 0, Math.PI * 2);
@@ -704,18 +712,36 @@ function render(canvas, world) {
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // Name label
+    // Name label with collision avoidance
     ctx.font = 'bold 11px system-ui';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     const nameText = agent.name;
     const nm = ctx.measureText(nameText);
-    ctx.fillStyle = '#000000bb';
+    let labelX = ax + 16 - nm.width / 2 - 4;
+    let labelY = ay - 16;
+    const labelW = nm.width + 8;
+    const labelH = 14;
+
+    // Check collision with existing labels and offset if needed
+    let attempts = 0;
+    while (attempts < 5) {
+      const collides = labelPositions.some(lp =>
+        labelX < lp.x + lp.w && labelX + labelW > lp.x &&
+        labelY < lp.y + lp.h && labelY + labelH > lp.y
+      );
+      if (!collides) break;
+      labelY -= 16; // shift up
+      attempts++;
+    }
+    labelPositions.push({ x: labelX, y: labelY, w: labelW, h: labelH });
+
+    ctx.fillStyle = '#000000cc';
     ctx.beginPath();
-    ctx.roundRect(ax + 16 - nm.width / 2 - 4, ay - 14, nm.width + 8, 14, 3);
+    ctx.roundRect(labelX, labelY, labelW, labelH, 3);
     ctx.fill();
     ctx.fillStyle = '#fff';
-    ctx.fillText(nameText, ax + 16, ay - 13);
+    ctx.fillText(nameText, labelX + 4, labelY + 1);
   }
 
   // Title bar
