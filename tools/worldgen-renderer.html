@@ -124,7 +124,22 @@ function generateWorld(seed, opts) {
     }
   }
 
-  return { rooms, walkable, objects, seed, opts };
+  // Place agents in rooms
+  const agentDefs = [
+    { id: 'claude', name: 'Claude', color: '#f97316', emoji: '🤖', role: 'Developer' },
+    { id: 'copilot', name: 'Copilot', color: '#3b82f6', emoji: '🧑‍💻', role: 'Developer' },
+    { id: 'jdai', name: 'JD.AI', color: '#22c55e', emoji: '🤖', role: 'Assistant' },
+    { id: 'ralph', name: 'Ralph', color: '#a855f7', emoji: '👔', role: 'Triage' },
+  ];
+  const agents = [];
+  for (let i = 0; i < Math.min(agentDefs.length, rooms.length); i++) {
+    const r = rooms[i];
+    const ax = rng.next(r.x + 2, r.x + r.w - 2);
+    const ay = rng.next(r.y + 2, r.y + r.h - 2);
+    agents.push({ ...agentDefs[i], x: ax, y: ay, room: r.id, status: i < 2 ? 'active' : (i < 3 ? 'idle' : 'offline') });
+  }
+
+  return { rooms, walkable, objects, agents, seed, opts };
 }
 
 function overlap(a, b) {
@@ -300,6 +315,50 @@ function render(canvas, world) {
     ctx.arc(obj.x*tileSize + tileSize/2, obj.y*tileSize + oY + tileSize/2, tileSize * 0.6, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillText(icon, obj.x*tileSize + tileSize/2, obj.y*tileSize + oY + tileSize/2);
+  }
+
+  // Agents
+  for (const agent of (world.agents || [])) {
+    const ax = agent.x * tileSize + tileSize / 2;
+    const ay = agent.y * tileSize + oY + tileSize / 2;
+    const statusColor = agent.status === 'active' ? '#22c55e' : agent.status === 'idle' ? '#eab308' : '#666';
+
+    // Agent glow ring
+    ctx.beginPath();
+    ctx.arc(ax, ay, tileSize * 1.1, 0, Math.PI * 2);
+    ctx.fillStyle = agent.color + '25';
+    ctx.fill();
+
+    // Agent body circle
+    ctx.beginPath();
+    ctx.arc(ax, ay, tileSize * 0.7, 0, Math.PI * 2);
+    ctx.fillStyle = agent.color;
+    ctx.fill();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Status dot
+    ctx.beginPath();
+    ctx.arc(ax + tileSize * 0.5, ay - tileSize * 0.5, 3, 0, Math.PI * 2);
+    ctx.fillStyle = statusColor;
+    ctx.fill();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Agent name label
+    ctx.font = 'bold 8px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const nameText = agent.name;
+    const nm = ctx.measureText(nameText);
+    ctx.fillStyle = '#000000aa';
+    ctx.beginPath();
+    ctx.roundRect(ax - nm.width / 2 - 3, ay + tileSize * 0.8, nm.width + 6, 11, 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.fillText(nameText, ax, ay + tileSize * 0.8 + 1);
   }
 
   // Title bar
