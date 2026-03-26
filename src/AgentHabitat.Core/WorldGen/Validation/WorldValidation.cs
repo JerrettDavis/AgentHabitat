@@ -1,0 +1,78 @@
+using AgentHabitat.Core.WorldGen.Contracts;
+
+namespace AgentHabitat.Core.WorldGen.Validation;
+
+public static class WorldValidation
+{
+    public static IReadOnlyList<string> Validate(WorldGenerationResult world)
+    {
+        var errors = new List<string>();
+
+        // Rule 1: no room overlap
+        var rooms = world.Rooms.ToList();
+        for (var i = 0; i < rooms.Count; i++)
+        {
+            for (var j = i + 1; j < rooms.Count; j++)
+            {
+                if (Overlap(rooms[i], rooms[j]))
+                {
+                    errors.Add($"Overlap: {rooms[i].Id} intersects {rooms[j].Id}");
+                }
+            }
+        }
+
+        // Rule 2: all required rooms reachable via walkable graph
+        if (rooms.Count > 0)
+        {
+            var reachable = FloodFill(world.Walkable, rooms[0].CenterX, rooms[0].CenterY);
+            foreach (var room in rooms)
+            {
+                if (!reachable.Contains((room.CenterX, room.CenterY)))
+                {
+                    errors.Add($"Unreachable room: {room.Id} ({room.Archetype})");
+                }
+            }
+        }
+
+        return errors;
+    }
+
+    private static HashSet<(int x, int y)> FloodFill(bool[,] walkable, int startX, int startY)
+    {
+        var width = walkable.GetLength(0);
+        var height = walkable.GetLength(1);
+        var visited = new HashSet<(int x, int y)>();
+        var q = new Queue<(int x, int y)>();
+
+        if (startX < 0 || startY < 0 || startX >= width || startY >= height || !walkable[startX, startY])
+            return visited;
+
+        q.Enqueue((startX, startY));
+        visited.Add((startX, startY));
+
+        var dirs = new (int dx, int dy)[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
+
+        while (q.Count > 0)
+        {
+            var (x, y) = q.Dequeue();
+            foreach (var (dx, dy) in dirs)
+            {
+                var nx = x + dx;
+                var ny = y + dy;
+                if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+                if (!walkable[nx, ny]) continue;
+                if (visited.Add((nx, ny))) q.Enqueue((nx, ny));
+            }
+        }
+
+        return visited;
+    }
+
+    private static bool Overlap(RoomPlacement a, RoomPlacement b)
+    {
+        return a.X < b.X + b.Width &&
+               a.X + a.Width > b.X &&
+               a.Y < b.Y + b.Height &&
+               a.Y + a.Height > b.Y;
+    }
+}
