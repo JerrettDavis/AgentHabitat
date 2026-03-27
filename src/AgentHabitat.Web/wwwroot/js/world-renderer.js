@@ -812,15 +812,34 @@ window.WorldRenderer = {
         a.y >= room.y && a.y < room.y + room.height &&
         a.status !== 'offline'
       );
-      if (agentsInRoom.length > 0) {
+      const offlineInRoom = (worldData.agents || []).filter(a =>
+        a.x >= room.x && a.x < room.x + room.width &&
+        a.y >= room.y && a.y < room.y + room.height &&
+        a.status === 'offline'
+      );
+
+      if (agentsInRoom.length > 0 || offlineInRoom.length > 0) {
         const rx = room.x * tileSize + room.width * tileSize - 12;
         const ry = room.y * tileSize + 6;
-        ctx.fillStyle = '#3b82f6cc';
-        ctx.beginPath(); ctx.arc(rx, ry, 7, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 8px system-ui';
-        ctx.textAlign = 'center';
-        ctx.fillText(agentsInRoom.length.toString(), rx, ry + 3);
+        // Active count (blue badge)
+        if (agentsInRoom.length > 0) {
+          ctx.fillStyle = '#3b82f6cc';
+          ctx.beginPath(); ctx.arc(rx, ry, 7, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 8px system-ui';
+          ctx.textAlign = 'center';
+          ctx.fillText(agentsInRoom.length.toString(), rx, ry + 3);
+        }
+        // Offline count (dim badge, offset)
+        if (offlineInRoom.length > 0) {
+          const ox = rx - (agentsInRoom.length > 0 ? 14 : 0);
+          ctx.fillStyle = '#52527488';
+          ctx.beginPath(); ctx.arc(ox, ry, 6, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#888';
+          ctx.font = 'bold 7px system-ui';
+          ctx.textAlign = 'center';
+          ctx.fillText(offlineInRoom.length.toString(), ox, ry + 3);
+        }
       }
     }
 
@@ -1487,12 +1506,28 @@ window.WorldRenderer = {
       const door = doorMap.get(doorKey);
 
       if (!door) return false; // no door = no passage
-      if (door.state !== 'Open') return false; // only open doors allow traversal
 
-      // Privacy check: if entering a room, check access policy
-      const targetRoom = toRoom || fromRoom;
-      if (targetRoom && WorldRenderer.canEnterRoom) {
-        if (!WorldRenderer.canEnterRoom(agentId, targetRoom.id)) return false;
+      // Determine if entering or exiting a room
+      const enteringRoom = toRoom && !fromRoom; // corridor → room
+      const exitingRoom = fromRoom && !toRoom;  // room → corridor
+      const roomToRoom = fromRoom && toRoom && fromRoom !== toRoom;
+
+      // Egress: agents can always leave a room they're in (never stranded)
+      if (exitingRoom) return door.state === 'Open' || true; // always allow exit
+
+      // Owner override: owner can always enter their own office even if locked/DND
+      const targetRoom = enteringRoom ? toRoom : (roomToRoom ? toRoom : null);
+      if (targetRoom) {
+        const isOwner = WorldRenderer.canEnterRoom && targetRoom.id === `office-${agentId}`;
+        if (isOwner) return true; // owner always enters
+
+        // Non-owner: door must be open AND privacy must allow
+        if (door.state !== 'Open') return false;
+        if (WorldRenderer.canEnterRoom && !WorldRenderer.canEnterRoom(agentId, targetRoom.id))
+          return false;
+      } else {
+        // No target room (corridor-to-corridor through room) — just check door state
+        if (door.state !== 'Open') return false;
       }
 
       return true;
@@ -1955,10 +1990,15 @@ window.WorldRenderer = {
   // Start idle animation loop (social behaviors + agent life)
   startIdleAnimation: function (canvasId) {
     const canvas = document.getElementById(canvasId);
-    if (!canvas || canvas._idleAnimRunning) return;
+    if (!canvas) return;
+    // Stop any existing timer first (prevent stacking)
+    if (canvas._idleAnimInterval) {
+      clearInterval(canvas._idleAnimInterval);
+      canvas._idleAnimInterval = null;
+    }
     canvas._idleAnimRunning = true;
     let frame = 0;
-    setInterval(() => {
+    canvas._idleAnimInterval = setInterval(() => {
       if (!canvas._worldData) return;
       frame++;
       // Re-render every ~2s for social behavior animations (bubbles, proximity, zzz)
@@ -1967,5 +2007,15 @@ window.WorldRenderer = {
         WorldRenderer.render(canvasId, canvas._worldData);
       }
     }, 300);
+  },
+
+  // Stop idle animation (call on dispose/navigation)
+  stopIdleAnimation: function (canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (canvas && canvas._idleAnimInterval) {
+      clearInterval(canvas._idleAnimInterval);
+      canvas._idleAnimInterval = null;
+      canvas._idleAnimRunning = false;
+    }
   }
 };

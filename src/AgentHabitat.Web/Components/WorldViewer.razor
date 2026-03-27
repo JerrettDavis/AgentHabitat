@@ -382,9 +382,12 @@
             _renderData = updated;
             _selectedRoom = null;
             _selectedAgent = null;
+            // Sync presence for new agent
+            Presence.Heartbeat(newAgent.Id, _renderData.Agents.Last().X, _renderData.Agents.Last().Y, "active");
             StateHasChanged();
             await JS.InvokeVoidAsync("eval", "document.getElementById('world-canvas')._baseObjects = null");
             await JS.InvokeVoidAsync("WorldRenderer.render", "world-canvas", _renderData);
+            await JS.InvokeVoidAsync("WorldRenderer.initializePrivacy", "world-canvas");
         }
     }
 
@@ -427,8 +430,9 @@
         ClearSelection();
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
+        try { await JS.InvokeVoidAsync("WorldRenderer.stopIdleAnimation", "world-canvas"); } catch { /* navigation */ }
         _selfRef?.Dispose();
     }
 }

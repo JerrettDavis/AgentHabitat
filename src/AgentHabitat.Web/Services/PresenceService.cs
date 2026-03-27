@@ -19,14 +19,19 @@ public class PresenceService
     {
         var now = DateTime.UtcNow;
         var toRemove = new List<string>();
+        var toMarkStale = new List<string>();
+
         foreach (var (id, entry) in _entries)
         {
             var age = now - entry.LastSeen;
             if (age > _offlineTimeout)
                 toRemove.Add(id);
             else if (age > _staleTimeout && entry.Status != "stale")
-                _entries[id] = entry with { Status = "stale" };
+                toMarkStale.Add(id);
         }
+
+        foreach (var id in toMarkStale)
+            _entries[id] = _entries[id] with { Status = "stale" };
         foreach (var id in toRemove)
             _entries.Remove(id);
     }

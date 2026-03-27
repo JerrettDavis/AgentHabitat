@@ -378,15 +378,18 @@ public sealed class DeterministicWorldGenerator : IWorldGenerator
         }
 
         // Deduplicate corner tiles (corners appear on two edges)
-        var seen = new HashSet<(int, int)>();
-        var deduped = new List<(int, int, DoorDirection, string?)>();
+        // Prefer corridor-connecting candidates over room-connecting when deduping
+        var bestByPos = new Dictionary<(int, int), (int, int, DoorDirection, string?)>();
         foreach (var c in candidates)
         {
-            if (seen.Add((c.Item1, c.Item2)))
-                deduped.Add(c);
+            var key = (c.Item1, c.Item2);
+            if (!bestByPos.ContainsKey(key))
+                bestByPos[key] = c;
+            else if (c.Item4 == "corridor" && bestByPos[key].Item4 != "corridor")
+                bestByPos[key] = c; // prefer corridor connection
         }
 
-        return deduped;
+        return bestByPos.Values.ToList();
     }
 
     private static bool IsInsideRoom(int x, int y, RoomPlacement room) =>
