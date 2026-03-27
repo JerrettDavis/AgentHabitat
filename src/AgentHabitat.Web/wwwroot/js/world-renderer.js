@@ -971,7 +971,22 @@ window.WorldRenderer = {
     ctx.fillStyle = '#888';
     ctx.font = '8px system-ui';
     ctx.textAlign = 'right';
-    ctx.fillText('MAP', mmX + mmW, mmY - 5);
+    ctx.fillText('CLICK TO JUMP', mmX + mmW, mmY - 5);
+
+    // Store minimap bounds for click-to-jump
+    canvas._minimapBounds = { x: mmX, y: mmY, w: mmW, h: mmH, scale: mmScale };
+
+    // Viewport indicator on minimap (if canvas is scrollable)
+    const wrap = canvas.parentElement;
+    if (wrap && (wrap.scrollWidth > wrap.clientWidth || wrap.scrollHeight > wrap.clientHeight)) {
+      const vx = mmX + (wrap.scrollLeft / canvas.width) * mmW;
+      const vy = mmY + (wrap.scrollTop / canvas.height) * mmH;
+      const vw = (wrap.clientWidth / canvas.width) * mmW;
+      const vh = (wrap.clientHeight / canvas.height) * mmH;
+      ctx.strokeStyle = '#ffffffaa';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(vx, vy, vw, vh);
+    }
     } // end minimap toggle
 
     // Edit mode overlay
@@ -1211,6 +1226,24 @@ window.WorldRenderer = {
 
         const tx = Math.floor(mx / ts);
         const ty = Math.floor(my / ts);
+
+        // Minimap click-to-jump: if click is within minimap bounds, scroll canvas
+        if (canvas._minimapBounds) {
+          const mm = canvas._minimapBounds;
+          if (mx >= mm.x && mx <= mm.x + mm.w && my >= mm.y && my <= mm.y + mm.h) {
+            const jumpX = ((mx - mm.x) / mm.w) * canvas.width;
+            const jumpY = ((my - mm.y) / mm.h) * canvas.height;
+            const wrap = canvas.parentElement;
+            if (wrap) {
+              wrap.scrollTo({
+                left: jumpX - wrap.clientWidth / 2,
+                top: jumpY - wrap.clientHeight / 2,
+                behavior: 'smooth'
+              });
+            }
+            return;
+          }
+        }
 
         // Check if an agent was clicked (priority over room)
         // Edit mode interactions
@@ -1809,6 +1842,42 @@ window.WorldRenderer = {
   // Get all object property definitions
   getObjectRegistry: function () {
     return OBJ_PROPS;
+  },
+
+  // Focus camera on a specific room (smooth scroll)
+  focusRoom: function (canvasId, roomId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !canvas._worldData) return;
+    const room = canvas._worldData.rooms.find(r => r.id === roomId);
+    if (!room) return;
+    const ts = canvas._tileSize;
+    const cx = room.x * ts + (room.width * ts) / 2;
+    const cy = room.y * ts + (room.height * ts) / 2;
+    const wrap = canvas.parentElement;
+    if (wrap) {
+      wrap.scrollTo({
+        left: cx - wrap.clientWidth / 2,
+        top: cy - wrap.clientHeight / 2,
+        behavior: 'smooth'
+      });
+    }
+  },
+
+  // Focus camera on a specific agent (smooth scroll)
+  focusAgent: function (canvasId, agentId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !canvas._worldData) return;
+    const agent = (canvas._worldData.agents || []).find(a => a.id === agentId);
+    if (!agent) return;
+    const ts = canvas._tileSize;
+    const wrap = canvas.parentElement;
+    if (wrap) {
+      wrap.scrollTo({
+        left: agent.x * ts - wrap.clientWidth / 2 + ts / 2,
+        top: agent.y * ts - wrap.clientHeight / 2 + ts / 2,
+        behavior: 'smooth'
+      });
+    }
   },
 
   // Start idle animation loop (social behaviors + agent life)
