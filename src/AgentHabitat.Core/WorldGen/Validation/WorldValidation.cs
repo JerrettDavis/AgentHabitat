@@ -66,7 +66,39 @@ public static class WorldValidation
                 errors.Add($"Duplicate door position at ({door.X},{door.Y})");
         }
 
-        // Rule 5: all required rooms reachable via walkable graph
+        // Rule 5: every room with corridor access must have at least one corridor-facing door
+        foreach (var room in rooms)
+        {
+            var hasCorridorNeighbor = false;
+            for (var x = room.X; x < room.X + room.Width && !hasCorridorNeighbor; x++)
+            {
+                for (var y = room.Y; y < room.Y + room.Height && !hasCorridorNeighbor; y++)
+                {
+                    var onPerimeter = x == room.X || x == room.X + room.Width - 1 ||
+                                     y == room.Y || y == room.Y + room.Height - 1;
+                    if (!onPerimeter) continue;
+
+                    foreach (var (nx, ny) in new[] { (x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1) })
+                    {
+                        if (nx < 0 || ny < 0 || nx >= world.Width || ny >= world.Height) continue;
+                        if (!world.Walkable[nx, ny]) continue;
+                        var inAnyRoom = rooms.Any(r =>
+                            nx >= r.X && nx < r.X + r.Width && ny >= r.Y && ny < r.Y + r.Height);
+                        if (!inAnyRoom) { hasCorridorNeighbor = true; break; }
+                    }
+                }
+            }
+
+            if (hasCorridorNeighbor)
+            {
+                var hasCorridorDoor = world.Doors.Any(d =>
+                    d.RoomId == room.Id && d.ConnectsTo == "corridor");
+                if (!hasCorridorDoor)
+                    errors.Add($"Room {room.Id} has corridor access but no corridor-facing door");
+            }
+        }
+
+        // Rule 6: all required rooms reachable via walkable graph
         if (rooms.Count > 0)
         {
             var reachable = FloodFill(world.Walkable, rooms[0].CenterX, rooms[0].CenterY);
