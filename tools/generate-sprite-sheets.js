@@ -12,6 +12,7 @@ const OUTPUT_DIR = path.join(__dirname, '..', 'docs', 'poc', 'sprite-sheets');
 
 const CATEGORIES = {
   'Furniture': ['desk', 'table', 'bookshelf', 'couch', 'server', 'filing', 'vending', 'coffee', 'cooler', 'coatrack', 'potted-tree', 'chair'],
+  'Multi-Tile': ['lg-bookshelf', 'lg-desk', 'l-desk', 'lg-table', 'lg-whiteboard', 'lg-screen', 'lg-sofa', 'lg-server', 'lg-tree', 'lg-window', 'reception'],
   'Wall Items': ['whiteboard', 'screen', 'bulletin', 'art-frame', 'calendar', 'clock', 'window', 'fire-ext'],
   'Floor Items': ['plant', 'lamp', 'fan', 'trash', 'rug', 'mat'],
   'Small Props': ['monitor', 'keyboard', 'mug', 'papers', 'headphones', 'snack-bowl', 'globe', 'cables'],

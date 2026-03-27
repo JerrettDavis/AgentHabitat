@@ -49,50 +49,64 @@ const PALETTES = {
 };
 
 // Object property registry — defines physical behavior per type
+// tw/th = tile width/height (multi-tile support, default 1×1)
 const OBJ_PROPS = {
-  // Solid furniture (blocks walking)
-  'desk':       { solid: true,  surface: true,  wallMount: false, placement: 'floor' },
-  'table':      { solid: true,  surface: true,  wallMount: false, placement: 'floor' },
-  'bookshelf':  { solid: true,  surface: false, wallMount: true,  placement: 'wall' },
-  'couch':      { solid: true,  surface: false, wallMount: false, placement: 'floor' },
-  'server':     { solid: true,  surface: false, wallMount: true,  placement: 'wall' },
-  'filing':     { solid: true,  surface: false, wallMount: true,  placement: 'wall' },
-  'vending':    { solid: true,  surface: false, wallMount: true,  placement: 'wall' },
-  'coffee':     { solid: true,  surface: true,  wallMount: false, placement: 'floor' },
-  'cooler':     { solid: true,  surface: false, wallMount: false, placement: 'floor' },
-  'coatrack':   { solid: true,  surface: false, wallMount: false, placement: 'floor' },
+  // Solid furniture (blocks walking) — single tile
+  'desk':       { solid: true,  surface: true,  wallMount: false, placement: 'floor', tw: 1, th: 1 },
+  'table':      { solid: true,  surface: true,  wallMount: false, placement: 'floor', tw: 1, th: 1 },
+  'bookshelf':  { solid: true,  surface: false, wallMount: true,  placement: 'wall',  tw: 1, th: 1 },
+  'couch':      { solid: true,  surface: false, wallMount: false, placement: 'floor', tw: 1, th: 1 },
+  'server':     { solid: true,  surface: false, wallMount: true,  placement: 'wall',  tw: 1, th: 1 },
+  'filing':     { solid: true,  surface: false, wallMount: true,  placement: 'wall',  tw: 1, th: 1 },
+  'vending':    { solid: true,  surface: false, wallMount: true,  placement: 'wall',  tw: 1, th: 1 },
+  'coffee':     { solid: true,  surface: true,  wallMount: false, placement: 'floor', tw: 1, th: 1 },
+  'cooler':     { solid: true,  surface: false, wallMount: false, placement: 'floor', tw: 1, th: 1 },
+  'coatrack':   { solid: true,  surface: false, wallMount: false, placement: 'floor', tw: 1, th: 1 },
 
-  // Wall-mounted (blocks walking, must be on wall)
-  'whiteboard': { solid: true,  surface: false, wallMount: true,  placement: 'wall' },
-  'screen':     { solid: true,  surface: false, wallMount: true,  placement: 'wall' },
-  'bulletin':   { solid: false, surface: false, wallMount: true,  placement: 'wall' },
-  'art-frame':  { solid: false, surface: false, wallMount: true,  placement: 'wall' },
-  'calendar':   { solid: false, surface: false, wallMount: true,  placement: 'wall' },
-  'clock':      { solid: false, surface: false, wallMount: true,  placement: 'wall' },
-  'window':     { solid: false, surface: false, wallMount: true,  placement: 'wall' },
-  'fire-ext':   { solid: false, surface: false, wallMount: true,  placement: 'wall' },
+  // Multi-tile furniture (NEW)
+  'lg-bookshelf': { solid: true,  surface: false, wallMount: true,  placement: 'wall',  tw: 3, th: 1 },
+  'lg-desk':      { solid: true,  surface: true,  wallMount: false, placement: 'floor', tw: 2, th: 1 },
+  'l-desk':       { solid: true,  surface: true,  wallMount: false, placement: 'floor', tw: 2, th: 2 },
+  'lg-table':     { solid: true,  surface: true,  wallMount: false, placement: 'floor', tw: 3, th: 1 },
+  'lg-whiteboard':{ solid: true,  surface: false, wallMount: true,  placement: 'wall',  tw: 3, th: 1 },
+  'lg-screen':    { solid: true,  surface: false, wallMount: true,  placement: 'wall',  tw: 2, th: 1 },
+  'lg-sofa':      { solid: true,  surface: false, wallMount: false, placement: 'floor', tw: 2, th: 1 },
+  'lg-server':    { solid: true,  surface: false, wallMount: true,  placement: 'wall',  tw: 1, th: 2 },
+  'lg-tree':      { solid: true,  surface: false, wallMount: false, placement: 'floor', tw: 1, th: 2 },
+  'lg-window':    { solid: false, surface: false, wallMount: true,  placement: 'wall',  tw: 3, th: 1 },
+  'reception':    { solid: true,  surface: true,  wallMount: false, placement: 'floor', tw: 3, th: 1 },
+
+  // Wall-mounted (single tile)
+  'whiteboard': { solid: true,  surface: false, wallMount: true,  placement: 'wall',  tw: 1, th: 1 },
+  'screen':     { solid: true,  surface: false, wallMount: true,  placement: 'wall',  tw: 1, th: 1 },
+  'bulletin':   { solid: false, surface: false, wallMount: true,  placement: 'wall',  tw: 1, th: 1 },
+  'art-frame':  { solid: false, surface: false, wallMount: true,  placement: 'wall',  tw: 1, th: 1 },
+  'calendar':   { solid: false, surface: false, wallMount: true,  placement: 'wall',  tw: 1, th: 1 },
+  'clock':      { solid: false, surface: false, wallMount: true,  placement: 'wall',  tw: 1, th: 1 },
+  'window':     { solid: false, surface: false, wallMount: true,  placement: 'wall',  tw: 1, th: 1 },
+  'fire-ext':   { solid: false, surface: false, wallMount: true,  placement: 'wall',  tw: 1, th: 1 },
 
   // Small props (can be placed on surfaces)
-  'monitor':    { solid: false, surface: false, wallMount: false, placement: 'surface' },
-  'keyboard':   { solid: false, surface: false, wallMount: false, placement: 'surface' },
-  'mug':        { solid: false, surface: false, wallMount: false, placement: 'surface' },
-  'papers':     { solid: false, surface: false, wallMount: false, placement: 'surface' },
-  'headphones': { solid: false, surface: false, wallMount: false, placement: 'surface' },
-  'snack-bowl': { solid: false, surface: false, wallMount: false, placement: 'surface' },
-  'globe':      { solid: false, surface: false, wallMount: false, placement: 'surface' },
-  'cables':     { solid: false, surface: false, wallMount: false, placement: 'floor' },
+  'monitor':    { solid: false, surface: false, wallMount: false, placement: 'surface', tw: 1, th: 1 },
+  'keyboard':   { solid: false, surface: false, wallMount: false, placement: 'surface', tw: 1, th: 1 },
+  'mug':        { solid: false, surface: false, wallMount: false, placement: 'surface', tw: 1, th: 1 },
+  'papers':     { solid: false, surface: false, wallMount: false, placement: 'surface', tw: 1, th: 1 },
+  'headphones': { solid: false, surface: false, wallMount: false, placement: 'surface', tw: 1, th: 1 },
+  'snack-bowl': { solid: false, surface: false, wallMount: false, placement: 'surface', tw: 1, th: 1 },
+  'globe':      { solid: false, surface: false, wallMount: false, placement: 'surface', tw: 1, th: 1 },
+  'cables':     { solid: false, surface: false, wallMount: false, placement: 'floor',   tw: 1, th: 1 },
 
-  // Seating (solid but walkable-adjacent)
-  'chair':      { solid: true,  surface: false, wallMount: false, placement: 'floor' },
+  // Seating
+  'chair':      { solid: true,  surface: false, wallMount: false, placement: 'floor', tw: 1, th: 1 },
 
-  // Floor items (freestanding, don't block)
-  'plant':      { solid: false, surface: false, wallMount: false, placement: 'floor' },
-  'potted-tree':{ solid: true,  surface: false, wallMount: false, placement: 'floor' },
-  'lamp':       { solid: false, surface: false, wallMount: false, placement: 'floor' },
-  'fan':        { solid: false, surface: false, wallMount: false, placement: 'floor' },
-  'trash':      { solid: false, surface: false, wallMount: false, placement: 'floor' },
-  'rug':        { solid: false, surface: false, wallMount: false, placement: 'floor' },
-  'mat':        { solid: false, surface: false, wallMount: false, placement: 'floor' },
+  // Floor items (freestanding)
+  'plant':      { solid: false, surface: false, wallMount: false, placement: 'floor', tw: 1, th: 1 },
+  'potted-tree':{ solid: true,  surface: false, wallMount: false, placement: 'floor', tw: 1, th: 1 },
+  'lamp':       { solid: false, surface: false, wallMount: false, placement: 'floor', tw: 1, th: 1 },
+  'fan':        { solid: false, surface: false, wallMount: false, placement: 'floor', tw: 1, th: 1 },
+  'trash':      { solid: false, surface: false, wallMount: false, placement: 'floor', tw: 1, th: 1 },
+  'rug':        { solid: false, surface: false, wallMount: false, placement: 'floor', tw: 1, th: 1 },
+  'mat':        { solid: false, surface: false, wallMount: false, placement: 'floor', tw: 1, th: 1 },
 };
 
 function getObjProps(type) {
@@ -587,6 +601,142 @@ window.WorldRenderer = {
         for (let row = 0; row < 4; row++) for (let col = 0; col < 4; col++) {
           ctx.fillRect(ox+10+col*3, oy+10+row*2, 2, 1);
         }
+      } else if (t === 'lg-bookshelf') {
+        // Large bookshelf 3×1 — full wall of books
+        const w = tileSize * 3;
+        drawLitRect(ctx, ox+2, oy+1, w-4, 28, matPal.wood, 2, 0.7);
+        for (let row = 0; row < 5; row++) {
+          drawLitRect(ctx, ox+2, oy+1+row*6, w-4, 1, matPal.woodLight, 3, 0.9);
+          for (let bx = 0; bx < Math.floor((w-8)/3); bx++) {
+            const bookColors = ['#cc4444','#44aa44','#4444cc','#ccaa44','#aa44aa','#44aaaa','#cc8844','#8844cc'];
+            const bc = bookColors[(bx + row * 3) % bookColors.length];
+            drawLitRect(ctx, ox+4+bx*3, oy+2+row*6, 2, 5, tintColor(bc, tint), 4, 0.8);
+          }
+        }
+      } else if (t === 'lg-desk') {
+        // Large desk 2×1 — wide workstation
+        const w = tileSize * 2;
+        drawLitRect(ctx, ox+4, oy+6, w-8, 12, matPal.wood, 4, 0.8);
+        drawLitRect(ctx, ox+5, oy+7, w-10, 2, matPal.woodLight, 5, 1.0);
+        drawLitRect(ctx, ox+6, oy+18, 3, 8, matPal.woodDark, 2, 0.5);
+        drawLitRect(ctx, ox+w-9, oy+18, 3, 8, matPal.woodDark, 2, 0.5);
+        // Dual monitors
+        drawLitRect(ctx, ox+8, oy+1, 12, 6, matPal.metal, 6, 0.9);
+        drawLitRect(ctx, ox+9, oy+2, 10, 4, matPal.screen, 6.5, 0.7);
+        drawLitRect(ctx, ox+w-20, oy+1, 12, 6, matPal.metal, 6, 0.9);
+        drawLitRect(ctx, ox+w-19, oy+2, 10, 4, matPal.screen, 6.5, 0.7);
+      } else if (t === 'l-desk') {
+        // L-shaped desk 2×2 — corner workstation
+        const w = tileSize * 2, h = tileSize * 2;
+        drawLitRect(ctx, ox+4, oy+6, w-8, 12, matPal.wood, 4, 0.8);
+        drawLitRect(ctx, ox+4, oy+tileSize+4, 12, tileSize-8, matPal.wood, 4, 0.8);
+        drawLitRect(ctx, ox+5, oy+7, w-10, 2, matPal.woodLight, 5, 1.0);
+        // Legs
+        drawLitRect(ctx, ox+6, oy+h-8, 3, 8, matPal.woodDark, 2, 0.5);
+        drawLitRect(ctx, ox+w-9, oy+18, 3, 8, matPal.woodDark, 2, 0.5);
+        // Monitor
+        drawLitRect(ctx, ox+10, oy+1, 12, 6, matPal.metal, 6, 0.9);
+        drawLitRect(ctx, ox+11, oy+2, 10, 4, matPal.screen, 6.5, 0.7);
+      } else if (t === 'lg-table') {
+        // Conference table 3×1
+        const w = tileSize * 3;
+        drawLitRect(ctx, ox+4, oy+8, w-8, 14, matPal.wood, 3, 0.8);
+        drawLitRect(ctx, ox+5, oy+9, w-10, 2, matPal.woodLight, 4, 1.0);
+        drawLitRect(ctx, ox+8, oy+22, 3, 6, matPal.woodDark, 1, 0.5);
+        drawLitRect(ctx, ox+w/2-1, oy+22, 3, 6, matPal.woodDark, 1, 0.5);
+        drawLitRect(ctx, ox+w-11, oy+22, 3, 6, matPal.woodDark, 1, 0.5);
+      } else if (t === 'lg-whiteboard') {
+        // Wide whiteboard 3×1
+        const w = tileSize * 3;
+        drawLitRect(ctx, ox+3, oy+2, w-6, 20, matPal.board, 5, 0.9);
+        drawLitRect(ctx, ox+3, oy+2, w-6, 2, matPal.metal, 6, 1.0);
+        drawLitRect(ctx, ox+3, oy+20, w-6, 2, matPal.metal, 6, 1.0);
+        // Scribbles across the board
+        ctx.fillStyle = '#33333380'; ctx.fillRect(ox+10, oy+6, 20, 1);
+        ctx.fillStyle = '#e76f5180'; ctx.fillRect(ox+15, oy+9, 30, 1);
+        ctx.fillStyle = '#3b82f680'; ctx.fillRect(ox+8, oy+12, 40, 1);
+        ctx.fillStyle = '#22c55e60'; ctx.fillRect(ox+20, oy+15, 25, 1);
+        // Stands
+        drawLitRect(ctx, ox+20, oy+22, 2, 6, matPal.metal, 2, 0.6);
+        drawLitRect(ctx, ox+w-22, oy+22, 2, 6, matPal.metal, 2, 0.6);
+        // Marker tray
+        drawLitRect(ctx, ox+w/2-10, oy+21, 20, 2, matPal.metal, 3, 0.7);
+        ctx.fillStyle = '#ef4444'; ctx.fillRect(ox+w/2-6, oy+21, 3, 2);
+        ctx.fillStyle = '#3b82f6'; ctx.fillRect(ox+w/2-2, oy+21, 3, 2);
+        ctx.fillStyle = '#22c55e'; ctx.fillRect(ox+w/2+2, oy+21, 3, 2);
+      } else if (t === 'lg-screen') {
+        // Large TV 2×1
+        const w = tileSize * 2;
+        drawLitRect(ctx, ox+4, oy+4, w-8, 18, matPal.metal, 5, 0.9);
+        drawLitRect(ctx, ox+6, oy+6, w-12, 14, tintColor('#1a3050', tint), 5.5, 0.7);
+        // Screen content (code lines)
+        ctx.fillStyle = '#22c55e40'; ctx.fillRect(ox+8, oy+8, 20, 1);
+        ctx.fillStyle = '#3b82f640'; ctx.fillRect(ox+8, oy+11, 30, 1);
+        ctx.fillStyle = '#f9731640'; ctx.fillRect(ox+8, oy+14, 15, 1);
+        drawLitRect(ctx, ox+w/2-3, oy+22, 6, 4, matPal.metal, 3, 0.6);
+        drawLitRect(ctx, ox+w/2-8, oy+26, 16, 2, matPal.metal, 2, 0.5);
+      } else if (t === 'lg-sofa') {
+        // Wide sofa 2×1
+        const w = tileSize * 2;
+        drawLitRect(ctx, ox+4, oy+6, w-8, 14, matPal.fabric, 3, 0.7);
+        drawLitRect(ctx, ox+4, oy+6, w-8, 3, matPal.fabric, 5, 0.9);
+        drawLitRect(ctx, ox+3, oy+6, 2, 10, matPal.fabric, 5, 0.8);
+        drawLitRect(ctx, ox+w-5, oy+6, 2, 10, matPal.fabric, 5, 0.8);
+        // Cushion dividers
+        drawLitRect(ctx, ox+w/3, oy+10, 2, 8, matPal.woodDark, 2, 0.5);
+        drawLitRect(ctx, ox+w*2/3, oy+10, 2, 8, matPal.woodDark, 2, 0.5);
+        // Pillows
+        ctx.fillStyle = tintColor('#e76f51', tint) + '80';
+        ctx.fillRect(ox+8, oy+8, 8, 6);
+        ctx.fillStyle = tintColor('#3b82f6', tint) + '80';
+        ctx.fillRect(ox+w-16, oy+8, 8, 6);
+      } else if (t === 'lg-server') {
+        // Tall server rack 1×2
+        const h = tileSize * 2;
+        drawLitRect(ctx, ox+6, oy+2, 20, h-4, tintColor('#333', tint), 4, 0.6);
+        for (let row = 0; row < 8; row++) {
+          drawLitRect(ctx, ox+8, oy+4+row*7, 16, 5, tintColor('#222', tint), 5, 0.5);
+          ctx.fillStyle = row % 3 === 0 ? '#22c55e' : row % 3 === 1 ? '#3b82f6' : '#ef4444';
+          ctx.fillRect(ox+10, oy+5+row*7, 2, 2);
+        }
+      } else if (t === 'lg-tree') {
+        // Tall indoor tree 1×2
+        const h = tileSize * 2;
+        drawLitRect(ctx, ox+12, oy+h-8, 8, 8, matPal.pot, 3, 0.7);
+        drawLitRect(ctx, ox+15, oy+20, 2, h-28, tintColor('#5a3a1a', tint), 2, 0.6);
+        for (const [lx,ly,sz] of [[10,4,7],[20,3,6],[8,12,6],[22,10,5],[15,1,7],[16,8,6],[12,16,5],[20,14,4]]) {
+          ctx.fillStyle = matPal.leaf; ctx.beginPath(); ctx.arc(ox+lx, oy+ly, sz, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = matPal.leafDark; ctx.beginPath(); ctx.arc(ox+lx+1, oy+ly+1, sz*0.5, 0, Math.PI*2); ctx.fill();
+        }
+      } else if (t === 'lg-window') {
+        // Panoramic window 3×1
+        const w = tileSize * 3;
+        drawLitRect(ctx, ox+2, oy+4, w-4, 22, tintColor('#1a3050', tint), 5, 0.8);
+        drawLitRect(ctx, ox+4, oy+6, w-8, 18, tintColor('#87ceeb', tint), 6, 1.0);
+        ctx.fillStyle = tintColor('#aaddff', tint) + '30';
+        ctx.fillRect(ox+4, oy+6, (w-8)/3, 8);
+        ctx.fillRect(ox+4+(w-8)/3*2, oy+6, (w-8)/3, 8);
+        // Mullions
+        ctx.fillStyle = tintColor('#555', tint);
+        ctx.fillRect(ox+4+(w-8)/3, oy+6, 2, 18);
+        ctx.fillRect(ox+4+(w-8)*2/3, oy+6, 2, 18);
+        ctx.fillRect(ox+4, oy+14, w-8, 2);
+        // Light glow
+        ctx.fillStyle = '#87ceeb08';
+        ctx.fillRect(ox, oy, w, tileSize);
+      } else if (t === 'reception') {
+        // Reception desk 3×1
+        const w = tileSize * 3;
+        drawLitRect(ctx, ox+4, oy+8, w-8, 16, matPal.wood, 4, 0.8);
+        drawLitRect(ctx, ox+5, oy+9, w-10, 3, matPal.woodLight, 5, 1.0);
+        drawLitRect(ctx, ox+4, oy+8, 3, 16, matPal.woodDark, 3, 0.6);
+        drawLitRect(ctx, ox+w-7, oy+8, 3, 16, matPal.woodDark, 3, 0.6);
+        // Curved front
+        drawLitRect(ctx, ox+8, oy+12, w-16, 10, matPal.wood, 3, 0.7);
+        // Monitor + plant
+        drawLitRect(ctx, ox+20, oy+2, 10, 6, matPal.metal, 6, 0.9);
+        drawLitRect(ctx, ox+21, oy+3, 8, 4, matPal.screen, 6.5, 0.7);
+        ctx.fillStyle = matPal.leaf; ctx.beginPath(); ctx.arc(ox+w-16, oy+6, 3, 0, Math.PI*2); ctx.fill();
       } else {
         // Fallback dot
         ctx.fillStyle = pal.accent + '40';
@@ -1440,11 +1590,17 @@ window.WorldRenderer = {
   },
 
   // Build solid-object set from world data (tiles blocked by furniture)
+  // Respects multi-tile footprints (tw × th)
   _buildSolidSet: function (wd) {
     const set = new Set();
     for (const obj of (wd.objects || [])) {
       const props = getObjProps(obj.type);
-      if (props.solid) set.add(`${obj.x},${obj.y}`);
+      if (props.solid) {
+        const tw = props.tw || 1, th = props.th || 1;
+        for (let dx = 0; dx < tw; dx++)
+          for (let dy = 0; dy < th; dy++)
+            set.add(`${obj.x + dx},${obj.y + dy}`);
+      }
     }
     return set;
   },
