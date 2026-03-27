@@ -111,6 +111,46 @@ public static class WorldValidation
             }
         }
 
+        // Rule 7: door-aware reachability — every room reachable through open doors
+        // Build room connectivity graph from doors
+        if (rooms.Count > 0)
+        {
+            var roomGraph = new Dictionary<string, HashSet<string>>();
+            foreach (var room in rooms)
+                roomGraph[room.Id] = [];
+            roomGraph["corridor"] = [];
+
+            foreach (var door in world.Doors)
+            {
+                var target = door.ConnectsTo ?? "corridor";
+                if (!roomGraph.ContainsKey(target)) roomGraph[target] = [];
+                roomGraph[door.RoomId].Add(target);
+                roomGraph[target].Add(door.RoomId);
+            }
+
+            // BFS from first room through door graph
+            var visited = new HashSet<string> { rooms[0].Id };
+            var queue = new Queue<string>();
+            queue.Enqueue(rooms[0].Id);
+            while (queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+                if (roomGraph.TryGetValue(current, out var neighbors))
+                {
+                    foreach (var n in neighbors)
+                    {
+                        if (visited.Add(n)) queue.Enqueue(n);
+                    }
+                }
+            }
+
+            foreach (var room in rooms)
+            {
+                if (!visited.Contains(room.Id))
+                    errors.Add($"Room {room.Id} not reachable through door graph");
+            }
+        }
+
         return errors;
     }
 
