@@ -757,8 +757,11 @@ window.WorldRenderer = {
     const time = Date.now();
     const idleFrame = canvas._idleFrame || 0;
 
-    // 1. Proximity lines — draw subtle connection lines between nearby agents
+    // 1. Proximity system — connection lines + chat zone indicators
     const proxRadius = 5; // tiles
+    const chatRadius = 3; // close enough for "chat"
+    const proxGroups = new Map(); // agentId → Set of nearby agentIds
+
     for (let i = 0; i < (worldData.agents || []).length; i++) {
       for (let j = i + 1; j < (worldData.agents || []).length; j++) {
         const a1 = worldData.agents[i], a2 = worldData.agents[j];
@@ -767,16 +770,57 @@ window.WorldRenderer = {
           const x1 = a1.x * tileSize + tileSize / 2, y1 = a1.y * tileSize + tileSize / 2;
           const x2 = a2.x * tileSize + tileSize / 2, y2 = a2.y * tileSize + tileSize / 2;
           const alpha = Math.max(0.08, 0.25 - dist * 0.03);
+
+          // Connection line
           ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 4]);
           ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
           ctx.setLineDash([]);
-          // Proximity spark at midpoint
-          const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
-          ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.6})`;
-          ctx.beginPath(); ctx.arc(mx, my, 2, 0, Math.PI * 2); ctx.fill();
+
+          // Track proximity groups
+          if (!proxGroups.has(a1.id)) proxGroups.set(a1.id, new Set());
+          if (!proxGroups.has(a2.id)) proxGroups.set(a2.id, new Set());
+          proxGroups.get(a1.id).add(a2.id);
+          proxGroups.get(a2.id).add(a1.id);
+
+          // Chat zone indicator for close agents
+          if (dist <= chatRadius) {
+            const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+            // Chat bubble icon at midpoint
+            const chatAlpha = 0.4 + Math.sin(time / 800) * 0.15;
+            ctx.fillStyle = `rgba(59, 130, 246, ${chatAlpha * 0.3})`;
+            ctx.beginPath(); ctx.arc(mx, my, 12, 0, Math.PI * 2); ctx.fill();
+            ctx.font = '10px system-ui';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = `rgba(255, 255, 255, ${chatAlpha})`;
+            ctx.fillText('💬', mx, my + 4);
+          } else {
+            // Distant proximity spark
+            const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.6})`;
+            ctx.beginPath(); ctx.arc(mx, my, 2, 0, Math.PI * 2); ctx.fill();
+          }
         }
+      }
+    }
+
+    // Room occupancy badges — show agent count on room labels
+    for (const room of worldData.rooms) {
+      const agentsInRoom = (worldData.agents || []).filter(a =>
+        a.x >= room.x && a.x < room.x + room.width &&
+        a.y >= room.y && a.y < room.y + room.height &&
+        a.status !== 'offline'
+      );
+      if (agentsInRoom.length > 0) {
+        const rx = room.x * tileSize + room.width * tileSize - 12;
+        const ry = room.y * tileSize + 6;
+        ctx.fillStyle = '#3b82f6cc';
+        ctx.beginPath(); ctx.arc(rx, ry, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 8px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(agentsInRoom.length.toString(), rx, ry + 3);
       }
     }
 
@@ -792,27 +836,39 @@ window.WorldRenderer = {
       const ay = agent.y * tileSize + tileSize / 2;
 
       if (agent.status === 'active') {
-        // Thought bubble with activity emote
-        const emoteIdx = Math.abs(agent.x * 7 + agent.y * 13 + Math.floor(time / 8000)) % statusEmotes.active.length;
-        const emote = statusEmotes.active[emoteIdx];
+        const hasNearby = proxGroups.has(agent.id) && proxGroups.get(agent.id).size > 0;
         const bubbleY = ay - 38;
-        // Bubble background
-        ctx.fillStyle = '#ffffffdd';
-        ctx.beginPath();
-        ctx.roundRect(ax + 8, bubbleY - 8, 20, 16, 4);
-        ctx.fill();
-        // Bubble tail
-        ctx.fillStyle = '#ffffffdd';
-        ctx.beginPath();
-        ctx.moveTo(ax + 10, bubbleY + 8);
-        ctx.lineTo(ax + 6, bubbleY + 12);
-        ctx.lineTo(ax + 14, bubbleY + 8);
-        ctx.fill();
-        // Emote
-        ctx.font = '10px system-ui';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#000';
-        ctx.fillText(emote, ax + 18, bubbleY + 4);
+
+        // Proximity-aware: show chat snippets when near others, emotes when solo
+        const chatSnippets = ['Let me check...', 'Good idea!', 'PR looks good', 'On it!', 'Reviewing...', 'Almost done', 'Need coffee ☕'];
+        const emoteIdx = Math.abs(agent.x * 7 + agent.y * 13 + Math.floor(time / 8000)) % statusEmotes.active.length;
+        const chatIdx = Math.abs(agent.x * 11 + agent.y * 17 + Math.floor(time / 10000)) % chatSnippets.length;
+
+        // Only show bubble intermittently (cooldown: ~40% of time visible)
+        const bubbleCycle = Math.floor(time / 6000 + agent.x * 3 + agent.y * 7) % 5;
+        if (bubbleCycle < 2) {
+          const text = hasNearby ? chatSnippets[chatIdx] : statusEmotes.active[emoteIdx];
+          const isChat = hasNearby && text.length > 2;
+
+          // Bubble background (wider for chat text)
+          ctx.font = isChat ? '8px system-ui' : '10px system-ui';
+          const tm = ctx.measureText(text);
+          const bw = Math.max(20, tm.width + 10);
+          ctx.fillStyle = isChat ? '#3b82f6dd' : '#ffffffdd';
+          ctx.beginPath();
+          ctx.roundRect(ax + 8, bubbleY - 8, bw, 16, 4);
+          ctx.fill();
+          // Bubble tail
+          ctx.beginPath();
+          ctx.moveTo(ax + 10, bubbleY + 8);
+          ctx.lineTo(ax + 6, bubbleY + 12);
+          ctx.lineTo(ax + 14, bubbleY + 8);
+          ctx.fill();
+          // Text
+          ctx.textAlign = 'left';
+          ctx.fillStyle = isChat ? '#fff' : '#000';
+          ctx.fillText(text, ax + 13, bubbleY + 4);
+        }
 
         // Active pulse ring
         const pulse = 0.3 + Math.sin(time / 600) * 0.15;
