@@ -304,6 +304,8 @@
             Presence.SimulatePresence(_renderData.Agents
                 .Select(a => (a.Id, a.X, a.Y, a.Status)));
         }
+        // Initialize privacy policies for all offices
+        await JS.InvokeVoidAsync("WorldRenderer.initializePrivacy", "world-canvas");
     }
 
     private async Task ToggleEditMode()
