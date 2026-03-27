@@ -124,6 +124,22 @@
                     </div>
                 }
 
+                @if (_selectedRoomDoorPairStats.Length > 0)
+                {
+                    <div style="margin-bottom:var(--sp-3)">
+                        <div class="section-label">Door Pair Counts</div>
+                        <div style="display:flex;flex-direction:column;gap:var(--sp-1)">
+                            @foreach (var stat in _selectedRoomDoorPairStats)
+                            {
+                                <div style="display:flex;justify-content:space-between;gap:var(--sp-2);font:var(--text-caption)">
+                                    <span style="color:var(--text-secondary)">@stat.PairKey</span>
+                                    <span class="habitat-tag">@stat.Count</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
                 @if (_selectedRoomObjects.Length > 0)
                 {
                     <div>
@@ -269,6 +285,7 @@
     private AgentRenderData[] _selectedRoomAgents = [];
     private ObjectRenderData[] _selectedRoomObjects = [];
     private DoorRenderData[] _selectedRoomDoors = [];
+    private DoorPairStat[] _selectedRoomDoorPairStats = [];
     private DotNetObjectReference<WorldViewer>? _selfRef;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -414,6 +431,7 @@
         _selectedRoomAgents = [];
         _selectedRoomObjects = [];
         _selectedRoomDoors = [];
+        _selectedRoomDoorPairStats = [];
         StateHasChanged();
     }
 
