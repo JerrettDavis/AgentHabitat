@@ -126,24 +126,47 @@ public class WorldService
             switch (r.Archetype)
             {
                 case RoomArchetype.CodingRoom:
-                    // Desk islands (2 rows of workstations)
-                    for (var row = 0; row < Math.Min(2, r.Height / 3); row++)
+                    // Use multi-tile desks if room is wide enough
+                    if (r.Width > 9)
                     {
-                        var dy = r.Y + 2 + row * 3;
-                        Place("desk", r.X + 2, dy, r.Id);
-                        Place("monitor", r.X + 3, dy, r.Id);
-                        Place("chair", r.X + 4, dy, r.Id);
-                        Place("keyboard", r.X + 2, dy + 1, r.Id);
-                        if (r.Width > 7)
+                        Place("lg-desk", r.X + 2, r.Y + 2, r.Id);
+                        Place("chair", r.X + 4, r.Y + 3, r.Id);
+                        Place("keyboard", r.X + 3, r.Y + 3, r.Id);
+                        if (r.Width > 11)
                         {
-                            Place("desk", r.X + r.Width - 4, dy, r.Id);
-                            Place("monitor", r.X + r.Width - 3, dy, r.Id);
-                            Place("chair", r.X + r.Width - 5, dy, r.Id);
-                            Place("headphones", r.X + r.Width - 4, dy + 1, r.Id);
+                            Place("lg-desk", r.X + r.Width - 5, r.Y + 2, r.Id);
+                            Place("chair", r.X + r.Width - 4, r.Y + 3, r.Id);
+                            Place("headphones", r.X + r.Width - 3, r.Y + 3, r.Id);
+                        }
+                        if (r.Height > 7)
+                        {
+                            Place("l-desk", r.X + 2, r.Y + 5, r.Id);
+                            Place("chair", r.X + 4, r.Y + 6, r.Id);
                         }
                     }
-                    // Whiteboard wall
-                    Place("whiteboard", cx, r.Y + 1, r.Id);
+                    else
+                    {
+                        for (var row = 0; row < Math.Min(2, r.Height / 3); row++)
+                        {
+                            var dy = r.Y + 2 + row * 3;
+                            Place("desk", r.X + 2, dy, r.Id);
+                            Place("monitor", r.X + 3, dy, r.Id);
+                            Place("chair", r.X + 4, dy, r.Id);
+                            Place("keyboard", r.X + 2, dy + 1, r.Id);
+                            if (r.Width > 7)
+                            {
+                                Place("desk", r.X + r.Width - 4, dy, r.Id);
+                                Place("monitor", r.X + r.Width - 3, dy, r.Id);
+                                Place("chair", r.X + r.Width - 5, dy, r.Id);
+                                Place("headphones", r.X + r.Width - 4, dy + 1, r.Id);
+                            }
+                        }
+                    }
+                    // Wide whiteboard for big rooms, regular for small
+                    if (r.Width > 8)
+                        Place("lg-whiteboard", cx - 1, r.Y + 1, r.Id);
+                    else
+                        Place("whiteboard", cx, r.Y + 1, r.Id);
                     // Coffee corner
                     Place("coffee", r.X + r.Width - 2, r.Y + r.Height - 2, r.Id);
                     Place("mug", r.X + r.Width - 2, r.Y + r.Height - 3, r.Id);
@@ -162,18 +185,26 @@ public class WorldService
                     break;
 
                 case RoomArchetype.ReviewRoom:
-                    // Conference table (center)
-                    Place("table", cx - 1, cy, r.Id);
-                    Place("table", cx, cy, r.Id);
-                    Place("table", cx + 1, cy, r.Id);
+                    // Conference table — use multi-tile if room is wide
+                    if (r.Width > 8)
+                        Place("lg-table", cx - 1, cy, r.Id);
+                    else
+                    {
+                        Place("table", cx - 1, cy, r.Id);
+                        Place("table", cx, cy, r.Id);
+                        Place("table", cx + 1, cy, r.Id);
+                    }
                     // Chairs around table
                     Place("chair", cx - 1, cy - 1, r.Id);
                     Place("chair", cx, cy - 1, r.Id);
                     Place("chair", cx + 1, cy - 1, r.Id);
                     Place("chair", cx - 1, cy + 1, r.Id);
                     Place("chair", cx + 1, cy + 1, r.Id);
-                    // Presentation screen
-                    Place("screen", cx, r.Y + 1, r.Id);
+                    // Presentation screen — large if room allows
+                    if (r.Width > 8)
+                        Place("lg-screen", cx - 1, r.Y + 1, r.Id);
+                    else
+                        Place("screen", cx, r.Y + 1, r.Id);
                     // Whiteboard
                     Place("whiteboard", r.X + 1, cy, r.Id);
                     // Water cooler + snacks
@@ -192,8 +223,15 @@ public class WorldService
                     break;
 
                 case RoomArchetype.Library:
-                    // Wall shelves (left + right walls)
-                    for (var sy = r.Y + 1; sy < r.Y + r.Height - 1; sy += 2)
+                    // Wall shelves — use large bookshelves on north/south walls if wide
+                    if (r.Width > 7)
+                    {
+                        Place("lg-bookshelf", r.X + 1, r.Y + 1, r.Id);
+                        if (r.Width > 10) Place("lg-bookshelf", r.X + 4, r.Y + 1, r.Id);
+                        Place("lg-bookshelf", r.X + 1, r.Y + r.Height - 2, r.Id);
+                    }
+                    // Side wall shelves (single-tile)
+                    for (var sy = r.Y + 2; sy < r.Y + r.Height - 2; sy += 2)
                     {
                         Place("bookshelf", r.X + 1, sy, r.Id);
                         if (r.Width > 5) Place("bookshelf", r.X + r.Width - 2, sy, r.Id);
@@ -261,9 +299,14 @@ public class WorldService
                     break;
 
                 default: // Lounge
-                    // Couch cluster
-                    Place("couch", r.X + 2, r.Y + 2, r.Id);
-                    if (r.Width > 6) Place("couch", r.X + 4, r.Y + 2, r.Id);
+                    // Couch — use large sofa if room is wide
+                    if (r.Width > 7)
+                        Place("lg-sofa", r.X + 2, r.Y + 2, r.Id);
+                    else
+                    {
+                        Place("couch", r.X + 2, r.Y + 2, r.Id);
+                        if (r.Width > 6) Place("couch", r.X + 4, r.Y + 2, r.Id);
+                    }
                     // Coffee table
                     Place("table", r.X + 3, r.Y + 4, r.Id);
                     // TV/screen
@@ -287,7 +330,8 @@ public class WorldService
                     Place("fan", r.X + r.Width - 2, r.Y + r.Height - 3, r.Id);
                     // Mug on table + window
                     Place("mug", r.X + 4, r.Y + 4, r.Id);
-                    if (r.Width > 7) Place("window", r.X + r.Width - 2, r.Y + 2, r.Id);
+                    if (r.Width > 9) Place("lg-window", r.X + r.Width - 4, r.Y + 2, r.Id);
+                    else if (r.Width > 7) Place("window", r.X + r.Width - 2, r.Y + 2, r.Id);
                     // Fire ext
                     Place("fire-ext", r.X + 1, r.Y + 2, r.Id);
                     break;
