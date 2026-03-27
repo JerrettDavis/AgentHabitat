@@ -223,34 +223,33 @@ public class WorldService
                     break;
 
                 case RoomArchetype.Library:
-                    // Wall shelves — use large bookshelves on north/south walls if wide
+                    // Wall shelves flush against walls
+                    // Large bookshelves on north wall (flush: y = room.Y)
                     if (r.Width > 7)
                     {
-                        Place("lg-bookshelf", r.X + 1, r.Y + 1, r.Id);
-                        if (r.Width > 10) Place("lg-bookshelf", r.X + 4, r.Y + 1, r.Id);
-                        Place("lg-bookshelf", r.X + 1, r.Y + r.Height - 2, r.Id);
+                        Place("lg-bookshelf", r.X + 1, r.Y, r.Id);
+                        if (r.Width > 10) Place("lg-bookshelf", r.X + 4, r.Y, r.Id);
                     }
-                    // Side wall shelves (single-tile)
-                    for (var sy = r.Y + 2; sy < r.Y + r.Height - 2; sy += 2)
+                    // Side wall shelves flush against left/right walls
+                    for (var sy = r.Y + 1; sy < r.Y + r.Height - 1; sy += 2)
                     {
-                        Place("bookshelf", r.X + 1, sy, r.Id);
-                        if (r.Width > 5) Place("bookshelf", r.X + r.Width - 2, sy, r.Id);
+                        Place("bookshelf", r.X, sy, r.Id); // flush left wall
+                        if (r.Width > 5) Place("bookshelf", r.X + r.Width - 1, sy, r.Id); // flush right wall
                     }
-                    // Reading nook (center)
+                    // Reading nook (center, away from shelves)
                     Place("chair", cx, cy, r.Id);
                     Place("lamp", cx + 1, cy, r.Id);
                     Place("desk", cx - 1, cy, r.Id);
                     // Rug under reading area
                     Place("rug", cx, cy + 1, r.Id);
-                    // Globe, art, potted tree
-                    Place("globe", r.X + r.Width - 2, r.Y + r.Height - 2, r.Id);
+                    // Globe + art (not on bookshelves — place in interior)
+                    Place("globe", cx + 2, cy + 1, r.Id);
                     Place("art-frame", cx, r.Y + 1, r.Id);
-                    Place("potted-tree", r.X + r.Width - 2, r.Y + 1, r.Id);
-                    // Plant
-                    Place("plant", r.X + 1, r.Y + r.Height - 2, r.Id);
-                    // Clock + window
-                    Place("clock", cx + 2, r.Y + 1, r.Id);
-                    if (r.Width > 6) Place("window", r.X + 1, r.Y + 1, r.Id);
+                    // Plant in interior, not on bookshelf wall
+                    Place("plant", cx - 2, r.Y + r.Height - 2, r.Id);
+                    Place("potted-tree", cx + 2, r.Y + r.Height - 2, r.Id);
+                    // Clock on south wall
+                    Place("clock", cx, r.Y + r.Height - 1, r.Id);
                     break;
 
                 case RoomArchetype.PrivateOffice:
@@ -267,7 +266,7 @@ public class WorldService
                         Place("cables", r.X + 1, r.Y + 1, r.Id);
                         Place("mug", cx + 1, r.Y + 2, r.Id);
                         Place("headphones", cx + 1, r.Y + 1, r.Id);
-                        if (r.Width > 5) Place("bookshelf", r.X + r.Width - 2, r.Y + 1, r.Id);
+                        if (r.Width > 5) Place("bookshelf", r.X + r.Width - 1, r.Y + 1, r.Id);
                         if (r.Width > 6) Place("server", r.X + r.Width - 2, r.Y + 2, r.Id);
                     }
                     else if (ownerAgent?.Role == "Assistant")
