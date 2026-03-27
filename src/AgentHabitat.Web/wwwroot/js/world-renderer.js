@@ -1487,7 +1487,15 @@ window.WorldRenderer = {
       const door = doorMap.get(doorKey);
 
       if (!door) return false; // no door = no passage
-      return door.state === 'Open'; // only open doors allow traversal
+      if (door.state !== 'Open') return false; // only open doors allow traversal
+
+      // Privacy check: if entering a room, check access policy
+      const targetRoom = toRoom || fromRoom;
+      if (targetRoom && WorldRenderer.canEnterRoom) {
+        if (!WorldRenderer.canEnterRoom(agentId, targetRoom.id)) return false;
+      }
+
+      return true;
     };
 
     const visited = new Set();
@@ -1842,6 +1850,70 @@ window.WorldRenderer = {
   // Get all object property definitions
   getObjectRegistry: function () {
     return OBJ_PROPS;
+  },
+
+  // === Office Privacy Controls ===
+
+  // Privacy policy per office: { roomId → { ownerId, policy, dnd } }
+  _privacyPolicies: {},
+
+  setPrivacyPolicy: function (canvasId, roomId, ownerId, policy, dnd) {
+    // policy: 'open' (anyone), 'owner-only' (locked to owner), 'invite' (owner + invited)
+    this._privacyPolicies[roomId] = { ownerId, policy: policy || 'open', dnd: dnd || false, invited: [] };
+    // Auto-lock door if DND or owner-only
+    const canvas = document.getElementById(canvasId);
+    if (canvas && canvas._worldData) {
+      for (const door of (canvas._worldData.doors || [])) {
+        if (door.roomId === roomId) {
+          door.state = (dnd || policy === 'owner-only') ? 'Locked' : 'Open';
+        }
+      }
+      WorldRenderer.render(canvasId, canvas._worldData);
+    }
+  },
+
+  getPrivacyPolicy: function (roomId) {
+    return this._privacyPolicies[roomId] || null;
+  },
+
+  // Set DND for an agent's office
+  setDoNotDisturb: function (canvasId, agentId, dnd) {
+    const roomId = `office-${agentId}`;
+    const existing = this._privacyPolicies[roomId];
+    if (existing) {
+      existing.dnd = dnd;
+      this.setPrivacyPolicy(canvasId, roomId, existing.ownerId, existing.policy, dnd);
+    } else {
+      this.setPrivacyPolicy(canvasId, roomId, agentId, 'owner-only', dnd);
+    }
+  },
+
+  // Check if an agent can enter a room
+  canEnterRoom: function (agentId, roomId) {
+    const policy = this._privacyPolicies[roomId];
+    if (!policy) return true; // no policy = open
+    if (policy.policy === 'open' && !policy.dnd) return true;
+    if (policy.ownerId === agentId) return true; // owner always enters
+    if (policy.policy === 'invite' && policy.invited.includes(agentId)) return true;
+    return false;
+  },
+
+  // Initialize privacy for all offices after generation
+  initializePrivacy: function (canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !canvas._worldData) return;
+    for (const agent of (canvas._worldData.agents || [])) {
+      const roomId = `office-${agent.id}`;
+      const room = canvas._worldData.rooms.find(r => r.id === roomId);
+      if (room) {
+        this._privacyPolicies[roomId] = {
+          ownerId: agent.id,
+          policy: 'open', // default: open office
+          dnd: false,
+          invited: []
+        };
+      }
+    }
   },
 
   // Focus camera on a specific room (smooth scroll)
