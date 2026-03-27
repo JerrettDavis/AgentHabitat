@@ -36,17 +36,8 @@ const AGENTS = [
   // Inject a sprite rendering helper that reuses the world-renderer drawing code
   // by rendering each object type on its own transparent 32x32 canvas
   await page.evaluate(() => {
-    // Helper: render a single object sprite at (0,0) on a transparent canvas
-    window._renderSprite = function(type, size) {
-      const ts = size || 32;
-      const canvas = document.createElement('canvas');
-      canvas.width = ts;
-      canvas.height = ts;
-      const ctx = canvas.getContext('2d');
-      // Transparent background (default)
-
-      // Get theme tint from main canvas
-      const mainCanvas = document.getElementById('world-canvas');
+    // Helper: render a single object sprite directly onto a target context at (ox, oy)
+    window._renderSpriteAt = function(ctx, type, ox, oy) {
       const tint = { r: 1.0, g: 1.0, b: 1.0 }; // neutral for sprite sheet
 
       // Material palette (same as renderer)
@@ -75,7 +66,6 @@ const AGENTS = [
         pot: tintColor('#8b5e3c', tint), board: tintColor('#e0e0e0', tint),
       };
 
-      const ox = 0, oy = 0;
       const t = type;
 
       // === OBJECT DRAWING CODE (copied from world-renderer.js) ===
@@ -252,7 +242,6 @@ const AGENTS = [
         for (let row = 0; row < 4; row++) for (let col = 0; col < 4; col++) ctx.fillRect(ox+10+col*3, oy+10+row*2, 2, 1);
       }
 
-      return canvas.toDataURL('image/png');
     };
   });
 
@@ -293,12 +282,8 @@ const AGENTS = [
         const dx = pad / 2 + col * cellW;
         const dy = 30 + row * cellH;
 
-        // Render individual sprite
-        const spriteDataUrl = window._renderSprite(type, ts);
-        const img = new Image();
-        img.src = spriteDataUrl;
-        // Draw synchronously since data URLs load instantly
-        ctx.drawImage(img, dx + pad, dy);
+        // Render sprite directly onto sheet at offset
+        window._renderSpriteAt(ctx, type, dx + pad, dy);
 
         // Label
         ctx.fillStyle = '#b0b8cc';
