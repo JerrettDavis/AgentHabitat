@@ -99,6 +99,26 @@ function getObjProps(type) {
   return OBJ_PROPS[type] || { solid: false, surface: false, wallMount: false, placement: 'floor' };
 }
 
+// Interaction hotspot definitions — objects agents can interact with
+const HOTSPOTS = {
+  'desk':       { action: 'Work', icon: '💻', radius: 1, duration: 'sustained' },
+  'table':      { action: 'Collaborate', icon: '🤝', radius: 1, duration: 'sustained' },
+  'whiteboard': { action: 'Review', icon: '📝', radius: 1, duration: 'sustained' },
+  'screen':     { action: 'Present', icon: '📊', radius: 1, duration: 'sustained' },
+  'bulletin':   { action: 'Read', icon: '📋', radius: 1, duration: 'brief' },
+  'bookshelf':  { action: 'Browse', icon: '📚', radius: 1, duration: 'brief' },
+  'coffee':     { action: 'Coffee', icon: '☕', radius: 1, duration: 'brief' },
+  'cooler':     { action: 'Drink', icon: '💧', radius: 1, duration: 'brief' },
+  'vending':    { action: 'Snack', icon: '🍫', radius: 1, duration: 'brief' },
+  'couch':      { action: 'Relax', icon: '😌', radius: 1, duration: 'sustained' },
+  'plant':      { action: 'Water', icon: '🌱', radius: 1, duration: 'brief' },
+  'globe':      { action: 'Examine', icon: '🌍', radius: 1, duration: 'brief' },
+};
+
+function getHotspot(type) {
+  return HOTSPOTS[type] || null;
+}
+
 window.WorldRenderer = {
   render: function (canvasId, worldData) {
     const canvas = document.getElementById(canvasId);
@@ -695,6 +715,44 @@ window.WorldRenderer = {
       ctx.fillText(agent.name, ax, ay - 15);
     }
 
+    // === Interaction Hotspots Layer ===
+    // Show interactive affordances on hotspot objects when agents are nearby
+    for (const obj of (worldData.objects || [])) {
+      const hs = getHotspot(obj.type);
+      if (!hs) continue;
+
+      // Check if any agent is within interaction radius
+      const nearbyAgent = (worldData.agents || []).find(a =>
+        Math.abs(a.x - obj.x) <= hs.radius && Math.abs(a.y - obj.y) <= hs.radius &&
+        a.status !== 'offline'
+      );
+
+      if (nearbyAgent) {
+        const hx = obj.x * tileSize, hy = obj.y * tileSize;
+
+        // Interaction glow ring
+        const glowAlpha = 0.25 + Math.sin(Date.now() / 500) * 0.1;
+        ctx.strokeStyle = `rgba(59, 130, 246, ${glowAlpha})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(hx - 2, hy - 2, tileSize + 4, tileSize + 4, 6);
+        ctx.stroke();
+
+        // Action label pill
+        ctx.font = 'bold 8px system-ui';
+        ctx.textAlign = 'center';
+        const label = `${hs.icon} ${hs.action}`;
+        const lm = ctx.measureText(label);
+        const lx = hx + tileSize / 2, ly = hy - 6;
+        ctx.fillStyle = '#3b82f6cc';
+        ctx.beginPath();
+        ctx.roundRect(lx - lm.width / 2 - 4, ly - 8, lm.width + 8, 12, 3);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.fillText(label, lx, ly);
+      }
+    }
+
     // === Social Behaviors Layer ===
     const time = Date.now();
     const idleFrame = canvas._idleFrame || 0;
@@ -1048,8 +1106,15 @@ window.WorldRenderer = {
           tx >= r.x && tx < r.x + r.width && ty >= r.y && ty < r.y + r.height
         );
 
+        // Check for hotspot objects
+        const hovObj = (wd.objects || []).find(o => o.x === tx && o.y === ty);
+        const hovHotspot = hovObj ? getHotspot(hovObj.type) : null;
+
         if (hovDoor) {
           canvas.title = `Door [${hovDoor.state}] — click to toggle · ${hovDoor.direction} · ${hovDoor.connectsTo || 'corridor'}`;
+          canvas.style.cursor = 'pointer';
+        } else if (hovHotspot) {
+          canvas.title = `${hovHotspot.icon} ${hovHotspot.action} (${hovObj.type}) — ${hovHotspot.duration}`;
           canvas.style.cursor = 'pointer';
         } else if (hovAgent) {
           canvas.title = `${hovAgent.name || hovAgent.id} (${hovAgent.role || 'agent'}) — ${hovAgent.status}`;
