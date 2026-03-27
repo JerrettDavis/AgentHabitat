@@ -2,6 +2,7 @@
 @using AgentHabitat.Core.WorldGen.Contracts
 @inject WorldService WorldSvc
 @inject IJSRuntime JS
+@inject PresenceService Presence
 
 <div class="habitat-shell">
     <div class="habitat-header">
@@ -58,6 +59,8 @@
             <span>Doors <strong>@_renderData.Doors.Length</strong></span>
             <span>Grid <strong>@(_renderData.Width)×@(_renderData.Height)</strong></span>
             <span>Hash <strong style="font:var(--text-mono)">@_renderData.TopologyHash[..12]</strong></span>
+            @{ var snap = Presence.GetSnapshot(); }
+            <span>Online <strong style="color:var(--accent-green)">@snap.ActiveCount</strong>/@snap.TotalCount</span>
         </div>
 
         <div class="habitat-agents">
@@ -294,6 +297,13 @@
         await JS.InvokeVoidAsync("eval", "document.getElementById('world-canvas')._baseObjects = null");
         await JS.InvokeVoidAsync("WorldRenderer.render", "world-canvas", _renderData);
         await JS.InvokeVoidAsync("WorldRenderer.startIdleAnimation", "world-canvas");
+
+        // Initialize presence for all agents
+        if (_renderData != null)
+        {
+            Presence.SimulatePresence(_renderData.Agents
+                .Select(a => (a.Id, a.X, a.Y, a.Status)));
+        }
     }
 
     private async Task ToggleEditMode()
