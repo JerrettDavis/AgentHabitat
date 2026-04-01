@@ -395,6 +395,7 @@ public class WorldService
         var doors = world.Doors.Select(d => new DoorRenderData(
             d.Id, d.X, d.Y, d.RoomId, d.Direction.ToString(), d.State.ToString(), d.ConnectsTo
         )).ToArray();
+        var doorPairStats = BuildDoorPairStats(world.Doors);
 
         return new WorldRenderData(
             world.Width,
@@ -404,10 +405,25 @@ public class WorldService
             objects.ToArray(),
             agents.ToArray(),
             doors,
+            doorPairStats,
             world.Seed,
             world.Options.StyleProfile,
             world.TopologyHash
         );
+    }
+
+    private static DoorPairStat[] BuildDoorPairStats(IReadOnlyList<DoorPlacement> doors)
+    {
+        return doors
+            .GroupBy(d =>
+            {
+                var a = d.RoomId;
+                var b = d.ConnectsTo ?? "corridor";
+                return string.Compare(a, b, StringComparison.Ordinal) <= 0 ? $"{a}|{b}" : $"{b}|{a}";
+            })
+            .Select(g => new DoorPairStat(g.Key, g.Count()))
+            .OrderBy(g => g.PairKey, StringComparer.Ordinal)
+            .ToArray();
     }
 }
 
@@ -419,6 +435,7 @@ public record WorldRenderData(
     ObjectRenderData[] Objects,
     AgentRenderData[] Agents,
     DoorRenderData[] Doors,
+    DoorPairStat[] DoorPairStats,
     string Seed,
     string Style,
     string TopologyHash
@@ -456,6 +473,11 @@ public record DoorRenderData(
     string Direction,
     string State,
     string? ConnectsTo
+);
+
+public record DoorPairStat(
+    string PairKey,
+    int Count
 );
 
 public record AgentRenderData(
