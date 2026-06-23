@@ -23,7 +23,7 @@ jobs:
         language: [javascript-typescript, csharp]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup .NET (C# only)
         if: matrix.language == 'csharp'
